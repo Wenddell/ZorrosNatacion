@@ -6,6 +6,9 @@
     <title>Lumos Tecnologia - Gestión</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
     <style>
         :root {
             --zorros-blue: #0a192f;
@@ -25,16 +28,13 @@
             --bronze: #f5e6da;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { display: flex;
-        height: 100vh; background-color: var(--bg-color); overflow: hidden; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { display: flex; height: 100vh; background-color: var(--bg-color); overflow: hidden; }
 
         /* --- LOGIN STYLES --- */
         #loginOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: var(--bg-color); display: flex; justify-content: center; align-items: center;
-            z-index: 100000; /* Siempre encima de todo */
+            background-color: var(--bg-color); display: flex; justify-content: center; align-items: center; z-index: 100000;
         }
         .login-container {
             background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
@@ -50,34 +50,22 @@
             font-size: 1.1rem; border-radius: 5px; cursor: pointer; margin-top: 15px; font-weight: bold; transition: 0.3s;
         }
         .btn-login:hover { background-color: var(--zorros-red); }
+        .btn-login:disabled { background-color: #888; cursor: not-allowed; }
         #loginError { color: var(--zorros-red); text-align: center; margin-top: 15px; display: none; font-weight: 600; font-size: 0.9rem; }
         .login-footer { margin-top: 30px; text-align: center; font-size: 0.85rem; color: #666; border-top: 1px solid #eee; padding-top: 15px; line-height: 1.5; }
 
         /* --- ROLE BASED ACCESS CONTROL (RBAC) STYLES --- */
         body:not(.role-admin) #menuAdmAccess { display: none !important; }
         
-        body.role-viewer .btn-primary,
-        body.role-viewer .icon-btn,
-        body.role-viewer .btn-action-small,
-        body.role-viewer .btn-team-edit,
-        body.role-viewer .btn-team-del,
-        body.role-viewer .btn-check-event,
-        body.role-viewer .btn-move,
-        body.role-viewer .btn-reorder,
-        body.role-viewer .btn-add-tag,
-        body.role-viewer .btn-delete-tag,
-        body.role-viewer .action-btn,
-        body.role-viewer .btn-toolbar[onclick*="print"] {
+        body.role-viewer .btn-primary, body.role-viewer .icon-btn, body.role-viewer .btn-action-small, body.role-viewer .btn-team-edit,
+        body.role-viewer .btn-team-del, body.role-viewer .btn-check-event, body.role-viewer .btn-move, body.role-viewer .btn-reorder,
+        body.role-viewer .btn-add-tag, body.role-viewer .btn-delete-tag, body.role-viewer .action-btn, body.role-viewer .btn-toolbar[onclick*="print"] {
             display: none !important;
         }
-        body.role-viewer input:not(.search-input),
-        body.role-viewer select:not(#eventFilterSelect) {
+        body.role-viewer input:not(.search-input), body.role-viewer select:not(#eventFilterSelect) {
             pointer-events: none !important; opacity: 0.8;
         }
-        body.role-viewer .event-title-line,
-        body.role-viewer .status-dot {
-            pointer-events: none !important;
-        }
+        body.role-viewer .event-title-line, body.role-viewer .status-dot { pointer-events: none !important; }
 
         /* --- CUSTOM ALERTS & CONFIRMS --- */
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
@@ -92,389 +80,174 @@
         .custom-confirm-buttons { display: flex; justify-content: center; gap: 15px; }
 
         /* --- SIDEBAR --- */
-        .sidebar { width: 260px;
-        flex-shrink: 0; background-color: var(--zorros-blue); color: white; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #000;
-        transition: width 0.3s ease; overflow-x: hidden; white-space: nowrap; 
-        }
-        
+        .sidebar { width: 260px; flex-shrink: 0; background-color: var(--zorros-blue); color: white; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #000; transition: width 0.3s ease; overflow-x: hidden; white-space: nowrap; }
         .sidebar.collapsed { width: 75px; }
-
-        /* TOGGLE BUTTON */
-        .toggle-btn {
-            background: transparent; border: none; color: white; font-size: 1.5rem; cursor: pointer;
-            width: 100%; padding: 15px 0 0 0; text-align: center; transition: 0.3s; outline: none;
-        }
+        .toggle-btn { background: transparent; border: none; color: white; font-size: 1.5rem; cursor: pointer; width: 100%; padding: 15px 0 0 0; text-align: center; transition: 0.3s; outline: none; }
         .toggle-btn:hover { color: var(--zorros-red); }
-
-        .sidebar-header { padding: 15px 20px 20px 20px; text-align: center; border-bottom: 1px solid #333; transition: padding 0.3s;
-        }
+        .sidebar-header { padding: 15px 20px 20px 20px; text-align: center; border-bottom: 1px solid #333; transition: padding 0.3s; }
         .sidebar.collapsed .sidebar-header { padding: 15px 10px; }
-
-        .logo-img { width: 70px; height: auto; margin-bottom: 10px; transition: width 0.3s, margin 0.3s; background: white; border-radius: 5px; padding: 5px;
-        }
+        .logo-img { width: 70px; height: auto; margin-bottom: 10px; transition: width 0.3s, margin 0.3s; background: white; border-radius: 5px; padding: 5px; }
         .sidebar.collapsed .logo-img { width: 45px; margin-bottom: 0; padding: 3px; }
-
-        .app-title { font-size: 1.2rem; font-weight: bold; color: #fff; text-transform: uppercase; letter-spacing: 1px; transition: opacity 0.2s;
-        }
-        .app-title span { color: var(--zorros-red);
-        }
+        .app-title { font-size: 1.2rem; font-weight: bold; color: #fff; text-transform: uppercase; letter-spacing: 1px; transition: opacity 0.2s; }
+        .app-title span { color: var(--zorros-red); }
         .sidebar.collapsed .app-title { display: none; }
-
-        .nav-menu { flex-grow: 1; padding: 20px 0; overflow-y: auto; overflow-x: hidden;
-        }
-        .nav-item { padding: 15px 25px; cursor: pointer; display: flex; align-items: center;
-        gap: 10px; color: #ccc; transition: 0.3s; border-left: 4px solid transparent;
-        }
+        .nav-menu { flex-grow: 1; padding: 20px 0; overflow-y: auto; overflow-x: hidden; }
+        .nav-item { padding: 15px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #ccc; transition: 0.3s; border-left: 4px solid transparent; }
         .nav-item i { min-width: 25px; text-align: center; font-size: 1.1rem; }
         .sidebar.collapsed .nav-text { display: none; }
         .sidebar.collapsed .nav-item { padding: 15px 0; justify-content: center; }
-
-        .nav-item:hover, .nav-item.active { background-color: var(--zorros-blue-light); color: white; border-left: 4px solid var(--zorros-red);
-        }
-        
-        .sidebar-footer { padding: 20px; border-top: 1px solid #333; transition: padding 0.3s;
-        }
+        .nav-item:hover, .nav-item.active { background-color: var(--zorros-blue-light); color: white; border-left: 4px solid var(--zorros-red); }
+        .sidebar-footer { padding: 20px; border-top: 1px solid #333; transition: padding 0.3s; }
         .sidebar.collapsed .sidebar-footer { padding: 20px 10px; }
-
-        .action-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px;
-        margin-bottom: 10px; background: transparent; border: 1px solid #444; color: #ccc; cursor: pointer; border-radius: 5px; font-size: 0.9rem; position: relative; transition: 0.3s;
-        }
+        .action-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; margin-bottom: 10px; background: transparent; border: 1px solid #444; color: #ccc; cursor: pointer; border-radius: 5px; font-size: 0.9rem; position: relative; transition: 0.3s; }
         .action-btn i { min-width: 25px; text-align: center; font-size: 1.1rem; }
-        .action-btn:hover { background-color: #333; color: white;
-        }
+        .action-btn:hover { background-color: #333; color: white; }
         .sidebar.collapsed .action-btn { justify-content: center; padding: 10px 0; }
         .sidebar.collapsed .action-text { display: none; }
-
-        .unsaved-indicator { position: absolute; top: 5px; right: 5px; width: 10px; height: 10px;
-        background-color: var(--zorros-red); border-radius: 50%; display: none; box-shadow: 0 0 5px red;
-        }
+        .unsaved-indicator { position: absolute; top: 5px; right: 5px; width: 10px; height: 10px; background-color: var(--zorros-red); border-radius: 50%; display: none; box-shadow: 0 0 5px red; }
         .sidebar.collapsed .unsaved-indicator { top: 2px; right: 2px; width: 8px; height: 8px; }
-
-        /* DEV SIGNATURE SIDEBAR */
-        .dev-signature {
-            margin-top: 15px;
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.4);
-            text-align: center;
-            line-height: 1.4;
-            padding: 0 5px;
-            white-space: normal;
-        }
+        .dev-signature { margin-top: 15px; font-size: 0.75rem; color: rgba(255, 255, 255, 0.4); text-align: center; line-height: 1.4; padding: 0 5px; white-space: normal; }
         .sidebar.collapsed .dev-signature { display: none; }
 
         /* --- MAIN CONTENT --- */
-        .main-content { flex-grow: 1;
-        padding: 30px; overflow-y: auto; overflow-x: hidden; }
-        #view-detail, #view-admin { display: none;
-        }
-        .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;
-        }
-        .page-title { font-size: 2rem; color: var(--zorros-blue); font-weight: bold;
-        }
+        .main-content { flex-grow: 1; padding: 30px; overflow-y: auto; overflow-x: hidden; }
+        #view-detail, #view-admin { display: none; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .page-title { font-size: 2rem; color: var(--zorros-blue); font-weight: bold; }
 
         /* HEADER DO TORNEIO */
-        .tournament-header { display: flex;
-        align-items: baseline; gap: 15px; margin-bottom: 10px; }
-        .th-name { font-size: 2.5rem; color: var(--zorros-blue);
-        font-weight: 800; text-transform: uppercase; }
-        .th-year { font-size: 1.8rem; color: var(--zorros-red); font-weight: bold;
-        }
+        .tournament-header { display: flex; align-items: baseline; gap: 15px; margin-bottom: 10px; }
+        .th-name { font-size: 2.5rem; color: var(--zorros-blue); font-weight: 800; text-transform: uppercase; }
+        .th-year { font-size: 1.8rem; color: var(--zorros-red); font-weight: bold; }
 
         /* --- TABS --- */
-        .tab-menu { display: flex;
-        gap: 25px; border-bottom: 2px solid #e0e0e0; margin-bottom: 25px; }
-        .tab-btn { background: none;
-        border: none; padding: 15px 5px; font-size: 1.1rem; color: #777; cursor: pointer; position: relative; font-weight: 500; transition: 0.3s;
-        }
-        .tab-btn:hover { color: var(--zorros-blue);
-        }
-        .tab-btn.active { color: var(--zorros-blue); font-weight: bold;
-        }
-        .tab-btn.active::after { content: ''; display: block; width: 100%; height: 4px; background-color: var(--zorros-red);
-        position: absolute; bottom: -2px; left: 0; border-radius: 2px 2px 0 0;
-        }
-        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out;
-        }
-        .tab-content.active { display: block;
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px);
-        } to { opacity: 1; transform: translateY(0); } }
+        .tab-menu { display: flex; gap: 25px; border-bottom: 2px solid #e0e0e0; margin-bottom: 25px; }
+        .tab-btn { background: none; border: none; padding: 15px 5px; font-size: 1.1rem; color: #777; cursor: pointer; position: relative; font-weight: 500; transition: 0.3s; }
+        .tab-btn:hover { color: var(--zorros-blue); }
+        .tab-btn.active { color: var(--zorros-blue); font-weight: bold; }
+        .tab-btn.active::after { content: ''; display: block; width: 100%; height: 4px; background-color: var(--zorros-red); position: absolute; bottom: -2px; left: 0; border-radius: 2px 2px 0 0; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
         /* --- TOOLBAR --- */
-        .toolbar { display: flex;
-        gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-        .search-box { display: flex;
-        flex-grow: 1; gap: 5px; }
-        .search-input { flex-grow: 1; padding: 10px;
-        border: 1px solid #ccc; border-radius: 5px; font-size: 1rem; }
-        .btn-toolbar { padding: 10px 15px;
-        border: 1px solid #ccc; background: white; border-radius: 5px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; color: #555;
-        transition: 0.2s; }
-        .btn-toolbar:hover { background-color: #f0f0f0; color: var(--zorros-blue);
-        }
-        .btn-toolbar.active { background-color: var(--zorros-blue); color: white; border-color: var(--zorros-blue);
-        }
+        .toolbar { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        .search-box { display: flex; flex-grow: 1; gap: 5px; }
+        .search-input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 1rem; }
+        .btn-toolbar { padding: 10px 15px; border: 1px solid #ccc; background: white; border-radius: 5px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; color: #555; transition: 0.2s; }
+        .btn-toolbar:hover { background-color: #f0f0f0; color: var(--zorros-blue); }
+        .btn-toolbar.active { background-color: var(--zorros-blue); color: white; border-color: var(--zorros-blue); }
 
-        #filterPanel { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 20px;
-        margin-bottom: 20px; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .filter-header { display: flex;
-        justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;
-        }
-        .filter-category-selector { display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto;
-        }
-        .filter-tags-area { display: flex; flex-wrap: wrap; gap: 8px;
-        }
-        .filter-tag-chip { padding: 5px 12px; background-color: #f0f2f5; border: 1px solid #ddd;
-        border-radius: 15px; cursor: pointer; font-size: 0.9rem; user-select: none; }
-        .filter-tag-chip:hover { background-color: #e4e6eb;
-        }
-        .filter-tag-chip.selected { background-color: var(--zorros-blue); color: white; border-color: var(--zorros-blue);
-        }
-        .btn-clear-filters { color: var(--zorros-red); background: none; border: none; font-size: 0.9rem; cursor: pointer;
-        text-decoration: underline; }
+        #filterPanel { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .filter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .filter-category-selector { display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; }
+        .filter-tags-area { display: flex; flex-wrap: wrap; gap: 8px; }
+        .filter-tag-chip { padding: 5px 12px; background-color: #f0f2f5; border: 1px solid #ddd; border-radius: 15px; cursor: pointer; font-size: 0.9rem; user-select: none; }
+        .filter-tag-chip:hover { background-color: #e4e6eb; }
+        .filter-tag-chip.selected { background-color: var(--zorros-blue); color: white; border-color: var(--zorros-blue); }
+        .btn-clear-filters { color: var(--zorros-red); background: none; border: none; font-size: 0.9rem; cursor: pointer; text-decoration: underline; }
 
         /* --- PRUEBAS STYLES --- */
-        .pruebas-sub-nav { display: flex;
-        gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px;
-        }
-        .btn-sub-nav { padding: 8px 16px; border: none; background: none; font-size: 1rem;
-        color: #555; cursor: pointer; font-weight: 600; }
-        .btn-sub-nav.active { color: var(--zorros-blue);
-        border-bottom: 3px solid var(--zorros-blue); }
-
-        .category-buttons { display: flex; gap: 15px; margin-bottom: 20px;
-        flex-wrap: wrap; }
-        .btn-cat { flex: 1; padding: 15px; background: white;
-        border: 1px solid #ccc; border-radius: 8px; font-size: 1.1rem; font-weight: bold; color: var(--zorros-blue); cursor: pointer; transition: 0.2s;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; min-width: 150px; }
-        .btn-cat:hover { transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: var(--zorros-blue); }
-        .btn-cat.active { background-color: var(--zorros-blue);
-        color: white; border-color: var(--zorros-blue); }
-
-        .event-filter-bar { background-color: #f8f9fa; border: 1px solid #ddd; padding: 15px;
-        border-radius: 8px; margin-bottom: 20px; display: none; align-items: center; gap: 15px;
-        }
-        .event-filter-bar select { padding: 8px; border-radius: 4px; border: 1px solid #ccc;
-        font-size: 1rem; min-width: 250px; }
+        .pruebas-sub-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        .btn-sub-nav { padding: 8px 16px; border: none; background: none; font-size: 1rem; color: #555; cursor: pointer; font-weight: 600; }
+        .btn-sub-nav.active { color: var(--zorros-blue); border-bottom: 3px solid var(--zorros-blue); }
+        .category-buttons { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn-cat { flex: 1; padding: 15px; background: white; border: 1px solid #ccc; border-radius: 8px; font-size: 1.1rem; font-weight: bold; color: var(--zorros-blue); cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; min-width: 150px; }
+        .btn-cat:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: var(--zorros-blue); }
+        .btn-cat.active { background-color: var(--zorros-blue); color: white; border-color: var(--zorros-blue); }
+        .event-filter-bar { background-color: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none; align-items: center; gap: 15px; }
+        .event-filter-bar select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 1rem; min-width: 250px; }
 
         /* --- TABLES --- */
-        .generated-event-table { width: 100%;
-        border-collapse: collapse; margin-bottom: 30px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); page-break-inside: avoid; table-layout: fixed;
-        }
-        .event-header { background-color: var(--zorros-blue); color: white; text-align: center; padding: 10px;
-        border: 1px solid #000; position: relative; transition: background-color 0.3s; }
-        
-        /* Título Editável */
-        .event-title-line { 
-            display: block;
-            font-weight: 800; font-size: 1.2rem; text-transform: uppercase; margin-bottom: 2px; 
-            cursor: pointer; outline: none; border-bottom: 1px dashed transparent;
-        }
-        .event-title-line:hover { border-bottom-color: rgba(255,255,255,0.5);
-        }
-        .event-title-line:focus { background-color: rgba(255,255,255,0.1); border-bottom-color: white;
-        }
+        .generated-event-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); page-break-inside: avoid; table-layout: fixed; }
+        .event-header { background-color: var(--zorros-blue); color: white; text-align: center; padding: 10px; border: 1px solid #000; position: relative; transition: background-color 0.3s; }
+        .event-title-line { display: block; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; margin-bottom: 2px; cursor: pointer; outline: none; border-bottom: 1px dashed transparent; }
+        .event-title-line:hover { border-bottom-color: rgba(255,255,255,0.5); }
+        .event-title-line:focus { background-color: rgba(255,255,255,0.1); border-bottom-color: white; }
+        .event-sub-line { display: block; font-weight: 500; font-size: 0.95rem; text-transform: uppercase; color: #eee; }
+        .generated-event-table th { background-color: #f0f0f0; color: #333; font-weight: bold; border: 1px solid #ccc; padding: 8px; font-size: 0.9rem; text-transform: uppercase; }
+        .generated-event-table td { border: 1px solid #ccc; padding: 8px; font-size: 0.9rem; text-overflow: ellipsis; overflow: hidden; white-space: normal; word-wrap: break-word; vertical-align: middle; }
+        .generated-event-table tr:nth-child(even) { background-color: #f9f9f9; }
 
-        .event-sub-line { display: block; font-weight: 500; font-size: 0.95rem; text-transform: uppercase; color: #eee;
-        }
-        .generated-event-table th { background-color: #f0f0f0; color: #333; font-weight: bold;
-        border: 1px solid #ccc; padding: 8px; font-size: 0.9rem; text-transform: uppercase;
-        }
-        .generated-event-table td { border: 1px solid #ccc; padding: 8px; font-size: 0.9rem;
-        text-overflow: ellipsis; overflow: hidden; white-space: normal; word-wrap: break-word; vertical-align: middle;
-        }
-        .generated-event-table tr:nth-child(even) { background-color: #f9f9f9;
-        }
-
-        .input-cell { width: 100%; border: 1px solid #ddd; padding: 5px; text-align: center;
-        font-family: monospace; font-size: 1rem; }
-        .input-cell:focus { outline: 2px solid var(--zorros-blue); border-color: transparent;
-        }
-        .input-cell:disabled { background-color: #eee; color: #999; cursor: not-allowed;
-        }
-
-        /* STATUS SELECT STYLES */
-        .status-select { 
-            width: 100%;
-            padding: 5px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; border: 1px solid #ccc; cursor: pointer;
-        }
-        .status-select.val-ok { background-color: #d4edda; color: #155724; border-color: #c3e6cb;
-        }
-        .status-select.val-dns { background-color: #fff3cd; color: #856404; border-color: #ffeeba;
-        }
-        .status-select.val-dsq { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb;
-        }
+        .input-cell { width: 100%; border: 1px solid #ddd; padding: 5px; text-align: center; font-family: monospace; font-size: 1rem; }
+        .input-cell:focus { outline: 2px solid var(--zorros-blue); border-color: transparent; }
+        .input-cell:disabled { background-color: #eee; color: #999; cursor: not-allowed; }
+        .status-select { width: 100%; padding: 5px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; border: 1px solid #ccc; cursor: pointer; }
+        .status-select.val-ok { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .status-select.val-dns { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+        .status-select.val-dsq { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
         .status-select:disabled { cursor: not-allowed; opacity: 0.7; }
-        
-        .absent-badge {
-            display: block;
-            width: 100%; padding: 5px; text-align: center; background-color: #f8d7da; color: #721c24; font-weight: bold; border-radius: 4px; font-size: 0.85rem;
-        }
+        .absent-badge { display: block; width: 100%; padding: 5px; text-align: center; background-color: #f8d7da; color: #721c24; font-weight: bold; border-radius: 4px; font-size: 0.85rem; }
+        .dsq-reason { display: block; font-size: 0.75rem; color: #d32f2f; margin-top: 4px; font-style: italic; line-height: 1.2; }
 
-        .dsq-reason {
-            display: block;
-            font-size: 0.75rem; color: #d32f2f; margin-top: 4px; font-style: italic; line-height: 1.2;
-        }
+        .rank-gold { background-color: var(--gold) !important; }
+        .rank-silver { background-color: var(--silver) !important; }
+        .rank-bronze { background-color: var(--bronze) !important; }
+        .medal-icon { margin-right: 5px; }
+        .medal-gold { color: #d4af37; }
+        .medal-silver { color: #aaa9ad; }
+        .medal-bronze { color: #cd7f32; }
 
-        /* --- MEDALS STYLES --- */
-        .rank-gold { background-color: var(--gold) !important;
-        }
-        .rank-silver { background-color: var(--silver) !important;
-        }
-        .rank-bronze { background-color: var(--bronze) !important;
-        }
-        
-        .medal-icon { margin-right: 5px;
-        }
-        .medal-gold { color: #d4af37;
-        }
-        .medal-silver { color: #aaa9ad;
-        }
-        .medal-bronze { color: #cd7f32;
-        }
-
-        /* --- TABLE STYLES (PARTICIPANTES) --- */
-        .table-controls { display: flex;
-        justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .counter-badge { background-color: var(--zorros-blue); color: white;
-        padding: 5px 10px; border-radius: 15px; font-size: 0.9rem; font-weight: bold; }
-        .table-container { overflow-x: auto;
-        background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-height: 60vh; overflow-y: auto;
-        }
+        .table-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .counter-badge { background-color: var(--zorros-blue); color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.9rem; font-weight: bold; }
+        .table-container { overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-height: 60vh; overflow-y: auto; }
         #participantsTable, #usersTable { width: 100%; border-collapse: collapse; }
         #participantsTable { min-width: 1400px; }
-        #participantsTable th, #participantsTable td, #usersTable th, #usersTable td { padding: 10px 12px; text-align: left;
-        border-bottom: 1px solid #eee; font-size: 0.9rem; vertical-align: middle; white-space: normal;
-        }
-        #participantsTable th, #usersTable th { background-color: var(--zorros-blue); color: white; font-weight: 600; white-space: nowrap;
-        position: sticky; top: 0; z-index: 20; }
-        .col-status { position: sticky; left: 0;
-        width: 60px; text-align: center; z-index: 10; }
-        .col-name { position: sticky; left: 60px;
-        width: 200px; z-index: 10; border-right: 2px solid rgba(0,0,0,0.1); }
-        .col-cert { width: 180px;
-        } 
-        #participantsTable th.col-status, #participantsTable th.col-name { z-index: 30;
-        }
-        #participantsTable tbody tr:nth-child(even) .col-status, #participantsTable tbody tr:nth-child(even) .col-name { background-color: #f8f9fa;
-        }
-        #participantsTable tbody tr:nth-child(odd) .col-status, #participantsTable tbody tr:nth-child(odd) .col-name { background-color: #ffffff;
-        }
-        #participantsTable tbody tr:hover .col-status, #participantsTable tbody tr:hover .col-name { background-color: #e2e6ea;
-        }
-        #participantsTable tbody tr.row-error .col-status, #participantsTable tbody tr.row-error .col-name { background-color: var(--error-bg) !important;
-        }
-        
-        .name-truncate-wrapper { max-width: 180px;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; position: relative;
-        }
-        .name-truncate-wrapper:hover { color: var(--zorros-blue); background-color: rgba(0,0,0,0.02);
-        }
-        .name-expanded { white-space: normal; word-wrap: break-word; overflow: visible;
-        }
-        
-        .status-dot { width: 15px;
-        height: 15px; border-radius: 50%; cursor: pointer; transition: transform 0.2s; display: inline-block;
-        }
-        .status-dot.red { background-color: var(--zorros-red);
-        }
-        .status-dot.green { background-color: var(--success-green);
-        }
-        .status-dot:hover { transform: scale(1.2);
-        }
-        
-        .btn-action-small { background: none;
-        border: none; cursor: pointer; font-size: 1rem; margin: 0 5px; opacity: 0.7;
-        }
-        .btn-action-small:hover { opacity: 1;
-        }
-        .team-table-actions { position: absolute; right: 10px; top: 10px; display: flex; gap: 10px;
-        }
-        .btn-mini-action { background: rgba(255,255,255,0.2); border: 1px solid white; color: white; cursor: pointer;
-        padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; display:flex; align-items:center; gap:5px;
-        }
-        .btn-mini-action:hover { background: rgba(255,255,255,0.4);
-        }
-        .team-row-actions { float: right; margin-top: 5px; display: flex; gap: 5px;
-        }
-        .btn-team-edit { background-color: var(--zorros-blue); color: white; border: none; padding: 3px 6px;
-        border-radius: 3px; cursor: pointer; font-size: 0.8rem; }
-        .btn-team-del { background-color: var(--zorros-red); color: white;
-        border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;
-        }
-
-        /* REORDER MODAL */
-        .reorder-list { display: flex;
-        flex-direction: column; gap: 5px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;
-        }
-        .reorder-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: #f8f9fa;
-        border: 1px solid #ccc; border-radius: 4px; }
-        .reorder-item.active { border-color: var(--zorros-blue); background-color: #e3f2fd;
-        }
-        .reorder-controls { display: flex; gap: 5px;
-        }
-        .btn-reorder { background: white; border: 1px solid #ccc; width: 30px; height: 30px;
-        border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center; color: #333;
-        }
-        .btn-reorder:hover { background-color: #eee;
-        }
-
-        /* CHECK BUTTON IN EVENT HEADER */
-        .btn-check-event {
-            position: absolute;
-            left: 10px; top: 10px; 
-            background: none; border: none; color: white; 
-            font-size: 1.2rem; cursor: pointer; 
-            transition: transform 0.2s;
-        }
-        .btn-check-event:hover { transform: scale(1.1);
-        }
-
-        /* MOVE BUTTON STYLE */
-        .btn-move {
-            background: none;
-            border: none; cursor: pointer; color: var(--zorros-blue);
-            font-size: 1rem; margin-right: 8px;
-            transition: transform 0.2s;
-        }
-        .btn-move:hover { transform: scale(1.2); color: var(--zorros-red);
-        }
-        .move-option {
-            padding: 10px;
-            border: 1px solid #ddd; border-radius: 5px; margin-bottom: 8px;
-            background: #f9f9f9; cursor: pointer; display: flex; justify-content: space-between;
-            align-items: center; transition: 0.2s;
-        }
-        .move-option:hover { background: #e3f2fd; border-color: var(--zorros-blue);
-        }
-        .move-option.disabled { opacity: 0.6; cursor: not-allowed; background: #eee;
-        }
+        #participantsTable th, #participantsTable td, #usersTable th, #usersTable td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.9rem; vertical-align: middle; white-space: normal; }
+        #participantsTable th, #usersTable th { background-color: var(--zorros-blue); color: white; font-weight: 600; white-space: nowrap; position: sticky; top: 0; z-index: 20; }
+        .col-status { position: sticky; left: 0; width: 60px; text-align: center; z-index: 10; }
+        .col-name { position: sticky; left: 60px; width: 200px; z-index: 10; border-right: 2px solid rgba(0,0,0,0.1); }
+        .col-cert { width: 180px; } 
+        #participantsTable th.col-status, #participantsTable th.col-name { z-index: 30; }
+        #participantsTable tbody tr:nth-child(even) .col-status, #participantsTable tbody tr:nth-child(even) .col-name { background-color: #f8f9fa; }
+        #participantsTable tbody tr:nth-child(odd) .col-status, #participantsTable tbody tr:nth-child(odd) .col-name { background-color: #ffffff; }
+        #participantsTable tbody tr:hover .col-status, #participantsTable tbody tr:hover .col-name { background-color: #e2e6ea; }
+        #participantsTable tbody tr.row-error .col-status, #participantsTable tbody tr.row-error .col-name { background-color: var(--error-bg) !important; }
+        .name-truncate-wrapper { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; position: relative; }
+        .name-truncate-wrapper:hover { color: var(--zorros-blue); background-color: rgba(0,0,0,0.02); }
+        .name-expanded { white-space: normal; word-wrap: break-word; overflow: visible; }
+        .status-dot { width: 15px; height: 15px; border-radius: 50%; cursor: pointer; transition: transform 0.2s; display: inline-block; }
+        .status-dot.red { background-color: var(--zorros-red); }
+        .status-dot.green { background-color: var(--success-green); }
+        .status-dot:hover { transform: scale(1.2); }
+        .btn-action-small { background: none; border: none; cursor: pointer; font-size: 1rem; margin: 0 5px; opacity: 0.7; }
+        .btn-action-small:hover { opacity: 1; }
+        .team-table-actions { position: absolute; right: 10px; top: 10px; display: flex; gap: 10px; }
+        .btn-mini-action { background: rgba(255,255,255,0.2); border: 1px solid white; color: white; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; display:flex; align-items:center; gap:5px; }
+        .btn-mini-action:hover { background: rgba(255,255,255,0.4); }
+        .team-row-actions { float: right; margin-top: 5px; display: flex; gap: 5px; }
+        .btn-team-edit { background-color: var(--zorros-blue); color: white; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 0.8rem; }
+        .btn-team-del { background-color: var(--zorros-red); color: white; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 0.8rem; }
+        .reorder-list { display: flex; flex-direction: column; gap: 5px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px; }
+        .reorder-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: #f8f9fa; border: 1px solid #ccc; border-radius: 4px; }
+        .reorder-item.active { border-color: var(--zorros-blue); background-color: #e3f2fd; }
+        .reorder-controls { display: flex; gap: 5px; }
+        .btn-reorder { background: white; border: 1px solid #ccc; width: 30px; height: 30px; border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center; color: #333; }
+        .btn-reorder:hover { background-color: #eee; }
+        .btn-check-event { position: absolute; left: 10px; top: 10px; background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; transition: transform 0.2s; }
+        .btn-check-event:hover { transform: scale(1.1); }
+        .btn-move { background: none; border: none; cursor: pointer; color: var(--zorros-blue); font-size: 1rem; margin-right: 8px; transition: transform 0.2s; }
+        .btn-move:hover { transform: scale(1.2); color: var(--zorros-red); }
+        .move-option { padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 8px; background: #f9f9f9; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .move-option:hover { background: #e3f2fd; border-color: var(--zorros-blue); }
+        .move-option.disabled { opacity: 0.6; cursor: not-allowed; background: #eee; }
 
         /* --- PRINT STYLES --- */
-        .print-header-container, .print-watermark { display: none;
-        }
-
+        .print-header-container, .print-watermark { display: none; }
         @media print {
             @page { size: landscape; margin: 10mm; }
             body { background-color: white; height: auto; overflow: visible; -webkit-print-color-adjust: exact; }
             .sidebar, .tab-menu, .toolbar, .table-controls, #filterPanel, .card-actions, .action-column, .pruebas-sub-nav, .category-buttons, button, .btn-toolbar, .event-filter-bar, .team-table-actions, .team-row-actions, .btn-status-toggle, .btn-move { display: none !important; }
             .main-content { margin: 0; padding: 0; width: 100%; overflow: visible; }
             .tournament-header { display: none; }
-            
-            /* WATERMARK ACTUALIZADO */
             .print-watermark { display: block; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60%; opacity: 0.07; z-index: -1; }
-            
-            /* HEADER IMPRESIÓN ACTUALIZADO */
             .print-header-container { display: flex; flex-direction: column; margin-bottom: 20px; border-bottom: 2px solid var(--zorros-blue); padding-bottom: 10px; text-align: right; }
             .print-dev-signature { font-size: 9pt; color: #555; margin-bottom: 15px; text-align: center; width: 100%; }
             .print-logo-box { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; justify-content: flex-end; }
             .print-logo { height: 50px; }
             .print-sys-title { color: var(--zorros-blue); margin: 0; font-size: 16pt; font-weight: bold; }
-            
             .print-title { font-size: 14pt; color: #333; font-weight: bold; text-transform: uppercase; margin: 5px 0 0 0; }
             .print-subtitle { font-size: 12pt; color: #666; margin: 0; }
-            
             .table-container { box-shadow: none; max-height: none; overflow: visible; }
             table { width: 100%; border: 1px solid #000; font-size: 10pt; font-family: 'Times New Roman', serif; border-collapse: collapse; }
             th, td, .col-status, .col-name { position: static !important; border-right: none !important; background-color: transparent !important; }
@@ -482,7 +255,6 @@
             td { border: 1px solid #000; padding: 4px; white-space: normal !important; overflow: visible !important; }
             .name-truncate-wrapper { max-width: none; white-space: normal; overflow: visible; }
             .col-status, .col-actions, .action-column, #participantsTable th:first-child, #participantsTable td:first-child { display: none; }
-            
             .generated-event-table { box-shadow: none; margin-bottom: 20px; border: 2px solid #000; width: 100% !important; table-layout: auto !important; }
             .generated-event-table th { width: auto !important; }
             .event-header { color: black !important; background-color: #ddd !important; border: 2px solid black !important; }
@@ -496,103 +268,51 @@
             .rank-gold { background-color: #fff4b8 !important; }
             .rank-silver { background-color: #f0f0f0 !important; }
             .rank-bronze { background-color: #f5e6da !important; }
-            
             .dist-hide-print { display: none !important; }
         }
 
-        /* --- OUTROS --- */
-        .tags-grid { display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
-        .tag-category-card { background: white; border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 20px; border-top: 3px solid var(--zorros-blue);
-        }
-        .tag-cat-title { font-size: 1.1rem; color: var(--zorros-blue); font-weight: bold; margin-bottom: 15px;
-        border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .tag-input-group { display: flex; gap: 10px;
-        margin-bottom: 15px; }
-        .tag-input-group input { flex-grow: 1; padding: 8px;
-        border: 1px solid #ddd; border-radius: 4px; }
-        .btn-add-tag { background-color: var(--zorros-blue); color: white;
-        border: none; width: 35px; height: 35px; border-radius: 4px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
-        }
-        .btn-add-tag:hover { background-color: var(--zorros-blue-light);
-        }
-        .tags-list { list-style: none; max-height: 200px; overflow-y: auto;
-        }
-        .tag-item { display: flex; justify-content: space-between; align-items: center; background-color: #f8f9fa;
-        padding: 8px 10px; margin-bottom: 5px; border-radius: 4px; border-left: 3px solid #ccc; font-size: 0.95rem;
-        }
-        .tag-item:hover { background-color: #e9ecef;
-        }
-        .btn-delete-tag { color: #999; background: none; border: none; cursor: pointer; padding: 5px;
-        }
-        .btn-delete-tag:hover { color: var(--zorros-red);
-        }
+        .tags-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .tag-category-card { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 20px; border-top: 3px solid var(--zorros-blue); }
+        .tag-cat-title { font-size: 1.1rem; color: var(--zorros-blue); font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .tag-input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tag-input-group input { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .btn-add-tag { background-color: var(--zorros-blue); color: white; border: none; width: 35px; height: 35px; border-radius: 4px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; }
+        .btn-add-tag:hover { background-color: var(--zorros-blue-light); }
+        .tags-list { list-style: none; max-height: 200px; overflow-y: auto; }
+        .tag-item { display: flex; justify-content: space-between; align-items: center; background-color: #f8f9fa; padding: 8px 10px; margin-bottom: 5px; border-radius: 4px; border-left: 3px solid #ccc; font-size: 0.95rem; }
+        .tag-item:hover { background-color: #e9ecef; }
+        .btn-delete-tag { color: #999; background: none; border: none; cursor: pointer; padding: 5px; }
+        .btn-delete-tag:hover { color: var(--zorros-red); }
 
-        .btn-primary { background-color: var(--zorros-red); color: white; padding: 12px 24px; border: none;
-        border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1rem; display: flex; align-items: center; gap: 8px; transition: 0.2s;
-        }
-        .btn-primary:hover { background-color: var(--zorros-red-hover);
-        }
-        .tournaments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;
-        }
-        .tournament-card { background: white; border-radius: 8px; padding: 20px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; transition: transform 0.2s; cursor: pointer; border-top: 4px solid var(--zorros-blue);
-        }
-        .tournament-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;
-        }
-        .t-name { font-size: 1.2rem; font-weight: bold; color: #333;
-        }
-        .t-year { font-size: 1.1rem; color: var(--zorros-red); font-weight: bold; margin-bottom: 15px;
-        }
-        .t-participants { font-size: 0.9rem; color: #666;
-        }
-        .card-actions { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px;
-        z-index: 10; }
-        .icon-btn { background: none; border: none; cursor: pointer; font-size: 1rem;
-        padding: 5px; border-radius: 4px; transition: 0.2s; }
-        .btn-edit { color: var(--zorros-blue);
-        } .btn-edit:hover { background-color: #e3f2fd; }
-        .btn-delete { color: var(--zorros-red);
-        } .btn-delete:hover { background-color: #ffebee; }
-        .empty-state { text-align: center; margin-top: 50px;
-        color: #777; font-size: 1.2rem; }
+        .btn-primary { background-color: var(--zorros-red); color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1rem; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-primary:hover { background-color: var(--zorros-red-hover); }
+        .tournaments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .tournament-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; transition: transform 0.2s; cursor: pointer; border-top: 4px solid var(--zorros-blue); }
+        .tournament-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .t-name { font-size: 1.2rem; font-weight: bold; color: #333; }
+        .t-year { font-size: 1.1rem; color: var(--zorros-red); font-weight: bold; margin-bottom: 15px; }
+        .t-participants { font-size: 0.9rem; color: #666; }
+        .card-actions { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 10; }
+        .icon-btn { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 5px; border-radius: 4px; transition: 0.2s; }
+        .btn-edit { color: var(--zorros-blue); } .btn-edit:hover { background-color: #e3f2fd; }
+        .btn-delete { color: var(--zorros-red); } .btn-delete:hover { background-color: #ffebee; }
+        .empty-state { text-align: center; margin-top: 50px; color: #777; font-size: 1.2rem; }
 
-        .modal-overlay { position: fixed; top: 0; left: 0;
-        width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;
-        }
-        .modal { background: white; padding: 30px; border-radius: 8px; width: 400px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .modal-large { width: 700px; max-height: 90vh;
-        overflow-y: auto; }
-        .modal-title { font-size: 1.5rem; margin-bottom: 20px; color: var(--zorros-blue);
-        }
-        .form-group { margin-bottom: 15px;
-        }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #555;
-        }
-        .form-group input, .form-group select { width: 100%; padding: 10px;
-        border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; }
-        .modal-buttons { display: flex;
-        justify-content: flex-end; gap: 10px; margin-top: 20px; }
-        .btn-secondary { background-color: #ccc; color: #333;
-        padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        .btn-secondary:hover { background-color: #bbb;
-        }
-        
-        .selection-list { display: flex;
-        flex-wrap: wrap; gap: 10px; border: 1px solid #ddd; padding: 10px; max-height: 150px; overflow-y: auto; border-radius: 4px;
-        }
-        .selection-item { padding: 8px 12px; background-color: #f0f2f5; border: 1px solid #ccc;
-        border-radius: 20px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; user-select: none;
-        }
-        .selection-item:hover { background-color: #e2e6ea;
-        }
-        .selection-item.selected { background-color: var(--zorros-blue); color: white; border-color: var(--zorros-blue);
-        }
-        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal { background: white; padding: 30px; border-radius: 8px; width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .modal-large { width: 700px; max-height: 90vh; overflow-y: auto; }
+        .modal-title { font-size: 1.5rem; margin-bottom: 20px; color: var(--zorros-blue); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn-secondary { background-color: #ccc; color: #333; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-secondary:hover { background-color: #bbb; }
+        .selection-list { display: flex; flex-wrap: wrap; gap: 10px; border: 1px solid #ddd; padding: 10px; max-height: 150px; overflow-y: auto; border-radius: 4px; }
+        .selection-item { padding: 8px 12px; background-color: #f0f2f5; border: 1px solid #ccc; border-radius: 20px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; user-select: none; }
+        .selection-item:hover { background-color: #e2e6ea; }
+        .selection-item.selected { background-color: var(--zorros-blue); color: white; border-color: var(--zorros-blue); }
         #fileInput { display: none; }
     </style>
 </head>
@@ -602,6 +322,10 @@
         <div class="login-container">
             <img src="https://i.postimg.cc/0ygbRDWQ/Logo-indumentaria-minimalista-tipografia-azul-1-removebg-preview.png" alt="Lumos Logo" class="login-logo">
             
+            <div id="loginLoading" style="color: var(--zorros-blue); font-weight: bold; text-align: center; margin-bottom: 15px;">
+                <i class="fas fa-spinner fa-spin"></i> Conectando a la base de datos...
+            </div>
+
             <div class="form-group">
                 <label for="loginUser">Usuario</label>
                 <input type="text" id="loginUser" placeholder="Ingrese su usuario" onkeypress="if(event.key==='Enter') realizarLogin()">
@@ -615,7 +339,7 @@
                 </div>
             </div>
             
-            <button class="btn-login" onclick="realizarLogin()">Ingresar</button>
+            <button class="btn-login" id="btnLoginBtn" onclick="realizarLogin()" disabled>Ingresar</button>
             <div id="loginError">Usuario o contraseña incorrectos.</div>
             
             <div class="login-footer">
@@ -669,8 +393,7 @@
             <input type="file" id="fileInput" accept=".txt,.json" onchange="loadFromFile(this)">
             
             <div class="dev-signature">
-                Desarrollado por Wenddell de Lima<br>
-                Contacto: 223 5863 676
+                Desarrollado por Wenddell de Lima<br>Contacto: 223 5863 676
             </div>
         </div>
     </div>
@@ -898,11 +621,72 @@
     </div>
 
     <script>
-        // --- LOGIN & ACCESS CONTROL ---
+        // =======================================================
+        // 1. CONFIGURAÇÃO FIREBASE
+        // =======================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQWwHpaHKiQMZpkaEbsEgKiqSce0cepc8",
+            authDomain: "zorrosnatacion-1352a.firebaseapp.com",
+            projectId: "zorrosnatacion-1352a",
+            storageBucket: "zorrosnatacion-1352a.firebasestorage.app",
+            messagingSenderId: "564997822055",
+            appId: "1:564997822055:web:6a48daec1c006c7b1e66c2"
+        };
+
+        // Inicializar Firebase (usando UMD Compat para não quebrar o código existente)
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // =======================================================
+        // 2. VARIÁVEIS GLOBAIS E LÓGICA DE LOGIN
+        // =======================================================
         const ADMIN_USER_B64 = "QWRtaW4=";      // Admin
         const ADMIN_PASS_B64 = "QWRtaW4xOTky";  // Admin1992
         let currentUserRole = null; 
-        let appUsers = JSON.parse(localStorage.getItem('zorrosUsers')) || [];
+        let appUsers = [];
+        
+        let tournaments = []; 
+        let hayCambiosSinGuardar = false; 
+        let currentTournamentId = null; 
+        let isDirty = false; 
+        const ERROR_TAG = "PARTICIPANTE SIN TAG"; 
+        let currentSearchTerm = ""; 
+        let activeFilters = {}; 
+        let currentFilterCategory = null;
+        let currentCategoryGroups = {}; 
+        let currentCategoryType = "";
+        let globalHeatsData = {};
+
+        // Carregar dados iniciais do Firebase ao abrir a página
+        window.onload = async function() { 
+            const loginBtn = document.getElementById('btnLoginBtn');
+            const loadingText = document.getElementById('loginLoading');
+            
+            if (localStorage.getItem('zorros_sidebar_collapsed') === 'true') {
+                document.getElementById('main-sidebar').classList.add('collapsed');
+            }
+
+            try {
+                // Baixar Usuários do Firestore
+                const usersSnap = await db.collection('users').get();
+                appUsers = [];
+                usersSnap.forEach(doc => { appUsers.push(doc.data()); });
+
+                // Baixar Torneios do Firestore
+                const tourneySnap = await db.collection('tournaments').get();
+                tournaments = [];
+                tourneySnap.forEach(doc => { tournaments.push(doc.data()); });
+
+                // Habilitar Login após carregar os dados
+                loadingText.style.display = 'none';
+                loginBtn.disabled = false;
+                loginBtn.style.backgroundColor = "var(--zorros-blue)";
+
+            } catch (error) {
+                console.error("Erro ao carregar do Firebase:", error);
+                loadingText.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:var(--zorros-red);"></i> Error de conexión. Intentá actualizar la página.`;
+            }
+        };
 
         function togglePasswordVisibility() {
             const passInput = document.getElementById('loginPassword');
@@ -929,7 +713,7 @@
 
             const foundUser = appUsers.find(u => u.username === user && u.password === pass);
             if (foundUser) {
-                currentUserRole = foundUser.role; 
+                currentUserRole = foundUser.role;
                 liberarAcesso();
                 return;
             }
@@ -943,7 +727,6 @@
             showHome();
         }
 
-        // Prevención de impresión para viewer
         window.addEventListener('keydown', function(event) {
             if ((event.ctrlKey || event.metaKey) && event.key === 'p' && currentUserRole === 'viewer') {
                 event.preventDefault();
@@ -951,7 +734,9 @@
             }
         });
 
-        // --- USER MANAGEMENT (Admin Only) ---
+        // =======================================================
+        // 3. GESTÃO DE USUÁRIOS NO FIREBASE
+        // =======================================================
         function showAdmin() {
             document.getElementById('view-list').style.display = 'none';
             document.getElementById('view-detail').style.display = 'none';
@@ -997,23 +782,30 @@
             const username = document.getElementById('newUser').value.trim();
             const password = document.getElementById('newPassword').value.trim();
             const role = document.getElementById('newRole').value;
-
+            
             if (!username || !password) { showToast("Usuario y contraseña son obligatorios."); return; }
+
+            const userData = { username, password, role };
 
             if (originalUser) {
                 const index = appUsers.findIndex(u => u.username === originalUser);
-                if (index !== -1) { appUsers[index] = { username, password, role }; }
+                if (index !== -1) { 
+                    appUsers[index] = userData;
+                    if (originalUser !== username) { db.collection('users').doc(originalUser).delete(); }
+                }
             } else {
                 if (appUsers.some(u => u.username === username) || username.toLowerCase() === 'admin') {
                     showToast("El usuario ya existe."); return;
                 }
-                appUsers.push({ username, password, role });
+                appUsers.push(userData);
             }
 
-            localStorage.setItem('zorrosUsers', JSON.stringify(appUsers));
-            fecharModalUsuario();
-            renderUsersTable();
-            showToast("Usuario guardado con éxito", "success");
+            // Salvar no Firebase
+            db.collection('users').doc(username).set(userData).then(() => {
+                fecharModalUsuario();
+                renderUsersTable();
+                showToast("Usuario guardado con éxito", "success");
+            }).catch(e => showToast("Error al guardar usuario en la nube."));
         }
 
         function editarUsuario(username) {
@@ -1031,13 +823,79 @@
         function excluirUsuario(username) {
             customConfirm(`¿Desea eliminar el usuario ${username}?`, () => {
                 appUsers = appUsers.filter(u => u.username !== username);
-                localStorage.setItem('zorrosUsers', JSON.stringify(appUsers));
-                renderUsersTable();
-                showToast("Usuario eliminado", "success");
+                db.collection('users').doc(username).delete().then(() => {
+                    renderUsersTable();
+                    showToast("Usuario eliminado", "success");
+                });
             });
         }
 
-        // --- CUSTOM ALERTS & CONFIRMS LOGIC ---
+        // =======================================================
+        // 4. LÓGICA DE DADOS DOS TORNEIOS (COM FIREBASE)
+        // =======================================================
+        
+        // Esta função substitui o localStorage enviando as alterações para o Firebase
+        function saveToLocal() { 
+            if (currentTournamentId) {
+                const t = tournaments.find(item => item.id === currentTournamentId);
+                if (t) {
+                    db.collection('tournaments').doc(t.id).set(t).catch(e => console.error("Error Firebase:", e));
+                }
+            } else {
+                // Se não há torneio ativo selecionado (por exemplo, na reordenação)
+                tournaments.forEach(t => {
+                    db.collection('tournaments').doc(t.id).set(t).catch(e => console.error(e));
+                });
+            }
+        }
+
+        function saveTournament() { 
+            const id = document.getElementById('editId').value;
+            const name = document.getElementById('tName').value; 
+            const year = document.getElementById('tYear').value; 
+            
+            if (!name || !year) { showToast("Completá todos los campos."); return; } 
+            
+            let targetT;
+            if (id) { 
+                const index = tournaments.findIndex(t => t.id === id); 
+                if (index !== -1) { 
+                    tournaments[index].name = name;
+                    tournaments[index].year = year; 
+                    targetT = tournaments[index];
+                } 
+            } else { 
+                const newId = Date.now().toString();
+                targetT = { id: newId, name: name, year: year, participants: [], tags: {} };
+                for (let key in tagMap) { targetT.tags[key] = []; } 
+                tournaments.push(targetT); 
+            } 
+
+            // Salva o novo torneio/editado no firebase
+            db.collection('tournaments').doc(targetT.id).set(targetT).then(() => {
+                markUnsavedChanges(); 
+                isDirty = false; 
+                document.getElementById('tournamentModal').style.display = 'none';
+                renderTournaments(); 
+            }).catch(e => showToast("Error al guardar torneo"));
+        }
+
+        function deleteTournament(id) { 
+            customConfirm("¿Eliminar este torneo?", () => {
+                tournaments = tournaments.filter(t => t.id !== id);
+                db.collection('tournaments').doc(id).delete().then(() => {
+                    markUnsavedChanges(); 
+                    renderTournaments(); 
+                });
+            });
+        }
+
+        // =======================================================
+        // 5. RESTANTE DO CÓDIGO (Interface, Utilidades, Telas)
+        // =======================================================
+
+        const tagMap = { equipo: { label: "Equipo", field: "team", type: "single" }, categoria_edad: { label: "Categoría por edad", field: "ageCat", type: "single" }, genero: { label: "Género Autopercebido", field: "gender", type: "single" }, categoria_competitiva: { label: "Categoría Competitiva", field: "compCat", type: "single" }, pruebas_individuales: { label: "Pruebas Individuales", field: "indEvents", type: "multi" }, pruebas_equipos: { label: "Pruebas en Equipo", field: "teamEvents", type: "multi" }, andarivel: { label: "Cantidad de Andariveles", field: "lanes", type: "single", maxLimit: 1, validation: "int" }, estado: { label: "Estado", field: "present", type: "boolean" } };
+
         function showToast(message, type = 'error') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -1063,26 +921,12 @@
             if (confirmCallback) confirmCallback();
         });
 
-        // --- SIDEBAR TOGGLE LOGIC ---
         document.getElementById('toggleSidebar').addEventListener('click', function() {
             const sidebar = document.getElementById('main-sidebar');
             sidebar.classList.toggle('collapsed');
             localStorage.setItem('zorros_sidebar_collapsed', sidebar.classList.contains('collapsed'));
         });
 
-        let tournaments = []; let hayCambiosSinGuardar = false; let currentTournamentId = null; let isDirty = false; const ERROR_TAG = "PARTICIPANTE SIN TAG"; let currentSearchTerm = ""; let activeFilters = {}; let currentFilterCategory = null; let currentCategoryGroups = {}; let currentCategoryType = "";
-        let globalHeatsData = {};
-        const tagMap = { equipo: { label: "Equipo", field: "team", type: "single" }, categoria_edad: { label: "Categoría por edad", field: "ageCat", type: "single" }, genero: { label: "Género Autopercebido", field: "gender", type: "single" }, categoria_competitiva: { label: "Categoría Competitiva", field: "compCat", type: "single" }, pruebas_individuales: { label: "Pruebas Individuales", field: "indEvents", type: "multi" }, pruebas_equipos: { label: "Pruebas en Equipo", field: "teamEvents", type: "multi" }, andarivel: { label: "Cantidad de Andariveles", field: "lanes", type: "single", maxLimit: 1, validation: "int" }, estado: { label: "Estado", field: "present", type: "boolean" } };
-        
-        window.onload = function() { 
-            const savedData = localStorage.getItem('zorros_data'); 
-            if (savedData) { tournaments = JSON.parse(savedData); } 
-            
-            if (localStorage.getItem('zorros_sidebar_collapsed') === 'true') {
-                document.getElementById('main-sidebar').classList.add('collapsed');
-            }
-        };
-        
         window.addEventListener('beforeunload', function (e) { if (hayCambiosSinGuardar) { e.preventDefault(); e.returnValue = ''; } });
         document.querySelectorAll('input, select').forEach(el => { el.addEventListener('input', () => isDirty = true); });
         function markUnsavedChanges() { hayCambiosSinGuardar = true; document.getElementById('unsavedDot').style.display = 'block'; }
@@ -1096,39 +940,42 @@
             document.getElementById('view-list').style.display = 'block'; 
             document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
             document.querySelector('.nav-item[onclick="showHome()"]').classList.add('active');
-            currentTournamentId = null; renderTournaments(); 
+            currentTournamentId = null; renderTournaments();
         }
         
         function openTournament(id) { 
-            const t = tournaments.find(item => item.id === id); 
+            const t = tournaments.find(item => item.id === id);
             if(!t) return; 
             if (!t.tags) { t.tags = {}; for (let key in tagMap) t.tags[key] = []; } 
-            if (!t.participants) t.participants = []; if (!t.teamEvents) t.teamEvents = []; if(!t.eventOrder) t.eventOrder = []; 
+            if (!t.participants) t.participants = [];
+            if (!t.teamEvents) t.teamEvents = []; if(!t.eventOrder) t.eventOrder = []; 
             for (let key in tagMap) { if(!t.tags[key]) t.tags[key] = []; } 
-            currentTournamentId = id; document.getElementById('detailName').innerText = t.name; document.getElementById('detailYear').innerText = t.year;
+            currentTournamentId = id; document.getElementById('detailName').innerText = t.name;
+            document.getElementById('detailYear').innerText = t.year;
             document.getElementById('printTournamentName').innerText = `${t.name} ${t.year}`;
             document.getElementById('printSubtitle').innerText = `Lista de Participantes`; clearAllFilters(false); switchTab('participantes'); renderParticipants(); renderTags(); 
-            document.getElementById('view-list').style.display = 'none'; 
+            document.getElementById('view-list').style.display = 'none';
             document.getElementById('view-admin').style.display = 'none';
             document.getElementById('view-detail').style.display = 'block'; 
         }
         
-        function switchTab(tabName) { document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        const buttons = document.querySelectorAll('.tab-btn'); buttons.forEach(btn => { if(btn.getAttribute('onclick').includes(tabName)) btn.classList.add('active'); }); document.getElementById(`tab-${tabName}`).classList.add('active'); }
+        function switchTab(tabName) { document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            const buttons = document.querySelectorAll('.tab-btn'); buttons.forEach(btn => { if(btn.getAttribute('onclick').includes(tabName)) btn.classList.add('active'); }); document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
         
         function switchPruebaSubTab(subTab) { 
-            const isCat = subTab === 'categorias'; 
+            const isCat = subTab === 'categorias';
             const isDist = subTab === 'distribucion';
             const isComp = subTab === 'competicion';
 
-            document.getElementById('sub-categorias').style.display = isCat ? 'block' : 'none'; 
+            document.getElementById('sub-categorias').style.display = isCat ? 'block' : 'none';
             document.getElementById('sub-distribucion').style.display = (isDist || isComp) ? 'block' : 'none'; 
             
             const btns = document.querySelectorAll('.btn-sub-nav'); 
             btns[0].classList.toggle('active', isCat); 
             btns[1].classList.toggle('active', isDist); 
             btns[2].classList.toggle('active', isComp);
-
             if (isDist) {
                 document.getElementById('dist-category-buttons').style.display = 'flex';
                 const activeBtn = document.querySelector('#dist-category-buttons .btn-cat.active');
@@ -1153,10 +1000,8 @@
             let totalLanes = 6;
             if (t.tags.andarivel && t.tags.andarivel.length > 0) { totalLanes = parseInt(t.tags.andarivel[0]) || 6; }
             let tablesGenerated = 0;
-            
             const isMasterCompetition = distType === 'All';
             const globalDisable = !isMasterCompetition ? 'disabled' : '';
-
             if (distType === 'Equipo' || distType === 'All') {
                 const controlsContainer = document.createElement('div');
                 controlsContainer.style.display = 'flex';
@@ -1219,7 +1064,8 @@
                     pendingAtoms.sort((a,b) => a.key.localeCompare(b.key));
                     
                     while(pendingAtoms.length > 0) {
-                        let current = pendingAtoms.shift(); let mergedGroup = [...current.swimmers];
+                        let current = pendingAtoms.shift();
+                        let mergedGroup = [...current.swimmers];
                         for (let i = 0; i < pendingAtoms.length; i++) {
                             if (mergedGroup.length + pendingAtoms[i].swimmers.length <= totalLanes) {
                                 mergedGroup = mergedGroup.concat(pendingAtoms[i].swimmers);
@@ -1254,7 +1100,6 @@
                         const checkIcon = isChecked ? 'fa-check-circle' : 'fa-circle';
                         
                         const checkBtn = isMasterCompetition ? `<button class="btn-check-event" onclick="toggleHeatCheck('${heatKey}')"><i class="fas ${checkIcon}"></i></button>` : '';
-                        
                         const thead = `<thead>
                             <tr>
                                 <td colspan="7" class="event-header" style="background-color: ${headerBg};">
@@ -1273,7 +1118,6 @@
                                 <th style="width:10%" class="print-hide dist-hide-print">Obs.</th>
                             </tr>
                         </thead>`;
-
                         const count = heatSwimmers.length;
                         let lanesAssigned = [];
                         if (count >= totalLanes / 2) { for(let i=1; i<=count; i++) lanesAssigned.push(i); } 
@@ -1292,7 +1136,6 @@
                             let isDisabled = currentStatus !== 'OK' || !isMasterCompetition ? 'disabled' : '';
                             const timeInput = `<input type="text" class="input-cell" placeholder="00:00:00" onkeydown="if(event.key==='Enter')this.blur()" oninput="formatTimeInput(this)" onblur="saveTime(this, '${p.id}', '${evtName}')" value="${p[`time_${evtName}`] || ''}" ${isDisabled}>`;
                             const laneInput = `<input type="number" class="input-cell" value="${lane}" style="font-weight:bold;" onblur="saveLane(this, '${p.id}', '${evtName}')" ${globalDisable}>`;
-                            
                             const historyLabel = p[`move_history_${evtName}`];
                             const historyHtml = historyLabel ? `<br><span style="color:#d35400; font-size:0.8rem; font-style:italic;">${historyLabel}</span>` : '';
 
@@ -1346,7 +1189,6 @@
                     const headerBg = isChecked ? 'var(--zorros-green)' : '#172a46';
                     const checkIcon = isChecked ? 'fa-check-circle' : 'fa-circle';
                     const checkBtn = isMasterCompetition ? `<button class="btn-check-event" onclick="toggleHeatCheck('${teamKey}')"><i class="fas ${checkIcon}"></i></button>` : '';
-                    
                     let thead = `<thead>
                         <tr>
                             <td colspan="5" class="event-header" style="background-color: ${headerBg}; position:relative;">
@@ -1377,7 +1219,6 @@
                             const laneInput = `<input type="number" class="input-cell" value="${lane}" style="font-weight:bold;" onblur="saveTeamLane(this, '${evt.id}', '${team.id}')" ${globalDisable}>`;
                             const timeInput = `<input type="text" class="input-cell" placeholder="00:00:00" onkeydown="if(event.key==='Enter')this.blur()" oninput="formatTimeInput(this)" onblur="saveTeamTime(this, '${evt.id}', '${team.id}')" value="${team.time || ''}" ${globalDisable}>`;
                             const rowActions = isMasterCompetition ? `<div class="team-row-actions"><button class="btn-team-edit" onclick="openAddTeamToEventModal('${evt.id}', '${team.id}')"><i class="fas fa-pencil-alt"></i></button><button class="btn-team-del" onclick="deleteTeamFromEvent('${evt.id}', '${team.id}')"><i class="fas fa-trash"></i></button></div>` : '';
-                            
                             tbody += `<tr>
                                 <td rowspan="4" style="font-weight:bold; vertical-align:middle; text-align:center;">${laneInput}</td>
                                 <td rowspan="4" style="font-weight:bold; vertical-align:middle; background:#fcfcfc;">${team.name}${rowActions}</td>
@@ -1395,7 +1236,6 @@
                     container.appendChild(table);
                 }
             });
-
             if (tablesGenerated === 0) { container.innerHTML = `<p style="text-align:center; padding:20px;">No hay series para mostrar en ${distType}.</p>`; }
             document.getElementById('printSubtitle').innerText = `${t.name} - ${distType === 'All' ? 'Competición' : 'Distribución Final: ' + distType}`;
         }
@@ -1412,7 +1252,6 @@
 
             const container = document.getElementById('moveOptionsContainer');
             container.innerHTML = '';
-            
             const generatedHeats = globalHeatsData[evtName];
 
             if (!generatedHeats || generatedHeats.length === 0) {
@@ -1425,7 +1264,6 @@
             generatedHeats.forEach((h, i) => { if(h.some(s => s.id === pId)) sourceHeatIndex = i; });
 
             let foundOption = false;
-
             generatedHeats.forEach((heatSwimmers, index) => {
                 const isCurrentHeat = heatSwimmers.some(s => s.id === pId);
                 if (isCurrentHeat) return; 
@@ -1488,7 +1326,6 @@
             if (targetModel[`virtual_category_${evtName}`]) { targetGroupingKey = targetModel[`virtual_category_${evtName}`]; }
             
             const labelSerie = `Serie ${targetHeatIndex + 1}`;
-            
             customConfirm(`¿Mover participante a: ${labelSerie}?`, () => {
                 if(p) {
                     if (targetGroupingKey === naturalKey) {
@@ -1809,6 +1646,7 @@
         function timeToMs(timeStr) { if (!timeStr) return 999999999; const parts = timeStr.split(':'); if (parts.length !== 3) return 999999999; return (parseInt(parts[0]) * 60000) + (parseInt(parts[1]) * 1000) + parseInt(parts[2]); }
         function processBigGroup(participants, heatsArray, limit) { for (let i = 0; i < participants.length; i += limit) heatsArray.push(participants.slice(i, i + limit)); }
         function formatTimeInput(input) { let v = input.value.replace(/\D/g, ''); if (v.length > 6) v = v.slice(0, 6); if (v.length >= 5) input.value = `${v.slice(0,2)}:${v.slice(2,4)}:${v.slice(4,6)}`; else if (v.length >= 3) input.value = `${v.slice(0,2)}:${v.slice(2)}`; else input.value = v; }
+        
         function saveTime(input, pId, eventName) { const t = tournaments.find(item => item.id === currentTournamentId); const p = t.participants.find(item => item.id === pId); if (p) { p[`time_${eventName}`] = input.value; saveToLocal(); } }
         function saveTeamTime(input, evtId, teamId) { const t = tournaments.find(item => item.id === currentTournamentId); const evt = t.teamEvents.find(e => e.id === evtId); const team = evt.teams.find(tm => tm.id === teamId); if (team) { team.time = input.value; saveToLocal(); } }
         
@@ -1926,7 +1764,6 @@
         }
 
         function renderTournaments() { const container = document.getElementById('tournamentsList'); container.innerHTML = ''; if (tournaments.length === 0) { container.innerHTML = `<div class="empty-state">No hay torneos registrados.</div>`; return; } tournaments.forEach(t => { const card = document.createElement('div'); card.className = 'tournament-card'; card.onclick = (e) => { if(!e.target.closest('.card-actions')) openTournament(t.id); }; const pCount = t.participants ? t.participants.length : 0; card.innerHTML = `<div class="card-header"><div><div class="t-name">${t.name}</div><div class="t-year">${t.year}</div></div><div class="card-actions"><button class="icon-btn btn-edit" onclick="editTournament('${t.id}')"><i class="fas fa-pencil-alt"></i></button><button class="icon-btn btn-delete" onclick="deleteTournament('${t.id}')"><i class="fas fa-trash"></i></button></div></div><div class="t-participants"><i class="fas fa-users"></i> ${pCount} Participantes</div>`; container.appendChild(card); }); }
-        function saveToLocal() { localStorage.setItem('zorros_data', JSON.stringify(tournaments)); }
         
         function openModal(isEdit = false) { const modal = document.getElementById('tournamentModal'); modal.style.display = 'flex'; isDirty = false; if (!isEdit) { document.getElementById('modalTitle').innerText = "Nuevo Torneo"; document.getElementById('editId').value = ""; document.getElementById('tName').value = ""; document.getElementById('tYear').value = ""; } }
         
@@ -1938,18 +1775,36 @@
             }
         }
 
-        function saveTournament() { const id = document.getElementById('editId').value; const name = document.getElementById('tName').value; const year = document.getElementById('tYear').value; if (!name || !year) { showToast("Completá todos los campos."); return; } if (id) { const index = tournaments.findIndex(t => t.id === id); if (index !== -1) { tournaments[index].name = name; tournaments[index].year = year; } } else { const newT = { id: Date.now().toString(), name: name, year: year, participants: [], tags: {} }; for (let key in tagMap) { newT.tags[key] = []; } tournaments.push(newT); } saveToLocal(); markUnsavedChanges(); isDirty = false; document.getElementById('tournamentModal').style.display = 'none'; renderTournaments(); }
         function editTournament(id) { const t = tournaments.find(t => t.id === id); if (t) { document.getElementById('modalTitle').innerText = "Editar Torneo"; document.getElementById('editId').value = t.id; document.getElementById('tName').value = t.name; document.getElementById('tYear').value = t.year; openModal(true); } }
         
-        function deleteTournament(id) { 
-            customConfirm("¿Eliminar este torneo?", () => {
-                tournaments = tournaments.filter(t => t.id !== id);
-                saveToLocal(); markUnsavedChanges(); renderTournaments(); 
-            });
+        function saveToFile() { const dataStr = JSON.stringify(tournaments, null, 2); const blob = new Blob([dataStr], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `historial_lumos_${new Date().toISOString().slice(0,10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); markChangesSaved(); }
+        
+        function loadFromFile(input) { 
+            const file = input.files[0]; 
+            if (!file) return; 
+            const reader = new FileReader(); 
+            reader.onload = async function(e) { 
+                try { 
+                    const data = JSON.parse(e.target.result); 
+                    if (Array.isArray(data)) { 
+                        tournaments = data; 
+                        
+                        // Envia o arquivo importado para o Firebase para que todos os computadores o recebam
+                        document.getElementById('loginLoading').style.display = 'block';
+                        document.getElementById('loginLoading').innerHTML = "Sincronizando archivo a la nube...";
+                        for(const t of tournaments) {
+                            await db.collection('tournaments').doc(t.id).set(t);
+                        }
+                        document.getElementById('loginLoading').style.display = 'none';
+                        
+                        showToast("Datos cargados a la nube!", "success"); 
+                        markChangesSaved(); showHome(); 
+                    } else { showToast("Archivo inválido."); } 
+                } catch (err) { showToast("Error al leer archivo."); } 
+            }; 
+            reader.readAsText(file); input.value = ''; 
         }
 
-        function saveToFile() { const dataStr = JSON.stringify(tournaments, null, 2); const blob = new Blob([dataStr], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `historial_lumos_${new Date().toISOString().slice(0,10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); markChangesSaved(); }
-        function loadFromFile(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if (Array.isArray(data)) { tournaments = data; saveToLocal(); showToast("Datos cargados!", "success"); markChangesSaved(); showHome(); } else { showToast("Archivo inválido."); } } catch (err) { showToast("Error al leer archivo."); } }; reader.readAsText(file); input.value = ''; }
         function renderCategoryTables(catType) { document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active')); if(catType === 'Recreativo') document.getElementById('btn-recreativo').classList.add('active'); else if(catType === 'Competitivo') document.getElementById('btn-competitivo').classList.add('active'); else if(catType === 'All') document.getElementById('btn-all').classList.add('active'); const container = document.getElementById('generated-tables-container'); const filterContainer = document.getElementById('eventFilterContainer'); container.innerHTML = ''; currentCategoryGroups = {}; currentCategoryType = catType; filterContainer.style.display = 'none'; document.getElementById('btnCreateTeamEvent').style.display = 'none'; const t = tournaments.find(item => item.id === currentTournamentId); const processType = (type) => { const targetType = normalizeString(type); t.participants.forEach(p => { if (!p.compCat || !normalizeString(p.compCat).includes(targetType)) return; if (!p.indEvents || !Array.isArray(p.indEvents) || p.indEvents.length === 0) return; p.indEvents.forEach(event => { const key = `${event}|${p.gender}|${p.ageCat}|${type}`; if (!currentCategoryGroups[key]) currentCategoryGroups[key] = []; currentCategoryGroups[key].push(p); }); }); }; if (catType === 'All') { processType('Recreativo'); processType('Competitivo'); } else { processType(catType); } if (Object.keys(currentCategoryGroups).length === 0) { container.innerHTML = `<p style="text-align:center; padding:20px;">No se encontraron participantes.</p>`; return; } const allEvents = new Set(); Object.keys(currentCategoryGroups).forEach(key => { const [evtName] = key.split('|'); allEvents.add(evtName); }); const select = document.getElementById('eventFilterSelect'); select.innerHTML = '<option value="">Mostrar Todas</option>'; Array.from(allEvents).sort().forEach(evt => { const cleanName = evt.replace(/^[\w\d]+\s*[-–]\s*/, ''); const option = document.createElement('option'); option.value = evt; option.innerText = cleanName; select.appendChild(option); }); filterContainer.style.display = 'flex'; renderFilteredTables(); document.getElementById('printSubtitle').innerText = `${t.name} - Categorías: ${catType === 'All' ? 'General' : catType}`; }
         function applyEventFilter() { renderFilteredTables(); }
         function renderFilteredTables() { const container = document.getElementById('generated-tables-container'); container.innerHTML = ''; const filterValue = document.getElementById('eventFilterSelect').value; let keys = Object.keys(currentCategoryGroups); if (filterValue) { keys = keys.filter(k => k.startsWith(filterValue + '|')); } if (keys.length === 0) { container.innerHTML = `<p style="text-align:center; padding:20px;">No hay resultados.</p>`; return; } keys.sort((a, b) => { const [evtA, genA, ageA] = a.split('|'); const [evtB, genB, ageB] = b.split('|'); if (genA !== genB) return genA.localeCompare(genB); if (evtA !== evtB) return evtA.localeCompare(evtB); return ageA.localeCompare(ageB); }); keys.forEach(key => { const [eventName, gender, ageCat, catType] = key.split('|'); const participants = currentCategoryGroups[key]; const cleanEvent = eventName.replace(/^[\w\d]+\s*[-–]\s*/, ''); const cleanCat = ageCat.replace(/^[\w\d]+\s*[-–]\s*/, ''); const table = document.createElement('table'); table.className = 'generated-event-table'; const thead = `<thead><tr><td colspan="4" class="event-header"><span class="event-title-line">${cleanEvent}</span><span class="event-sub-line">${gender}</span><span class="event-sub-line">${cleanCat}</span><span class="event-sub-line">${catType}</span></td></tr><tr><th style="width:20%">Equipo</th><th style="width:40%">Nombre</th><th style="width:20%">DNI</th><th style="width:20%">Fecha Nac.</th></tr></thead>`; let tbody = '<tbody>'; participants.forEach(p => { tbody += `<tr><td>${p.team}</td><td>${p.name}</td><td>${p.dni}</td><td>${formatDate(p.dob)}</td></tr>`; }); tbody += '</tbody>'; table.innerHTML = thead + tbody; container.appendChild(table); }); }
@@ -1975,52 +1830,6 @@
                 if(evt) { evt.teams = evt.teams.filter(tm => tm.id !== teamId); saveToLocal(); markUnsavedChanges(); refreshCurrentPruebasView(); } 
             });
         }
-
-        // 1. Importe os módulos do Firebase (versão compat ou modular)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-// 2. Cole aqui o SEU firebaseConfig que você copiou do console
-const firebaseConfig = {
-    const firebaseConfig = {
-  apiKey: "AIzaSyBQWwHpaHKiQMZpkaEbsEgKiqSce0cepc8",
-  authDomain: "zorrosnatacion-1352a.firebaseapp.com",
-  projectId: "zorrosnatacion-1352a",
-  storageBucket: "zorrosnatacion-1352a.firebasestorage.app",
-  messagingSenderId: "564997822055",
-  appId: "1:564997822055:web:6a48daec1c006c7b1e66c2"
-};
-  // COLE SEUS DADOS AQUI
-    
-};
-
-// 3. Inicialize o Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-// 4. Substitua a função saveToLocal para salvar no Firebase
-function saveToLocal() {
-    // Mantemos o local como backup, mas enviamos para a nuvem
-    localStorage.setItem('lumos_tournaments', JSON.stringify(tournaments));
-    
-    // Salva no Realtime Database do Firebase
-    set(ref(db, 'dados_sistema/'), {
-        tournaments: tournaments
-    }).then(() => {
-        console.log("Sincronizado com o Firebase!");
-    });
-}
-
-// 5. Carregue os dados do Firebase ao iniciar
-onValue(ref(db, 'dados_sistema/'), (snapshot) => {
-    const data = snapshot.val();
-    if (data && data.tournaments) {
-        tournaments = data.tournaments;
-        renderTournaments(); // Chama a função que desenha a tela
-    }
-});
-
-        
     </script>
 </body>
 </html>
