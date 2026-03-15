@@ -102,6 +102,7 @@
         .action-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; margin-bottom: 10px; background: transparent; border: 1px solid #444; color: #ccc; cursor: pointer; border-radius: 5px; font-size: 0.9rem; position: relative; transition: 0.3s; }
         .action-btn i { min-width: 25px; text-align: center; font-size: 1.1rem; }
         .action-btn:hover { background-color: #333; color: white; }
+        .action-btn.btn-logout:hover { background-color: var(--zorros-red); border-color: var(--zorros-red); color: white; }
         .sidebar.collapsed .action-btn { justify-content: center; padding: 10px 0; }
         .sidebar.collapsed .action-text { display: none; }
         .unsaved-indicator { position: absolute; top: 5px; right: 5px; width: 10px; height: 10px; background-color: var(--zorros-red); border-radius: 50%; display: none; box-shadow: 0 0 5px red; }
@@ -232,7 +233,7 @@
         .move-option:hover { background: #e3f2fd; border-color: var(--zorros-blue); }
         .move-option.disabled { opacity: 0.6; cursor: not-allowed; background: #eee; }
 
-        /* --- PRINT STYLES --- */
+        /* --- PRINT STYLES (IMPRESSÃO CENTRALIZADA) --- */
         .print-header-container, .print-watermark { display: none; }
         @media print {
             @page { size: landscape; margin: 10mm; }
@@ -241,13 +242,24 @@
             .main-content { margin: 0; padding: 0; width: 100%; overflow: visible; }
             .tournament-header { display: none; }
             .print-watermark { display: block; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60%; opacity: 0.07; z-index: -1; }
-            .print-header-container { display: flex; flex-direction: column; margin-bottom: 20px; border-bottom: 2px solid var(--zorros-blue); padding-bottom: 10px; text-align: right; }
-            .print-dev-signature { font-size: 9pt; color: #555; margin-bottom: 15px; text-align: center; width: 100%; }
-            .print-logo-box { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; justify-content: flex-end; }
-            .print-logo { height: 50px; }
-            .print-sys-title { color: var(--zorros-blue); margin: 0; font-size: 16pt; font-weight: bold; }
-            .print-title { font-size: 14pt; color: #333; font-weight: bold; text-transform: uppercase; margin: 5px 0 0 0; }
-            .print-subtitle { font-size: 12pt; color: #666; margin: 0; }
+            
+            /* Novo layout centralizado do Header de Impressão */
+            .print-header-container { 
+                display: flex; 
+                flex-direction: column; 
+                align-items: center; /* Centraliza tudo horizontalmente */
+                margin-bottom: 30px; 
+                border-bottom: 2px solid var(--zorros-blue); 
+                padding-bottom: 20px; 
+                text-align: center; 
+            }
+            .print-dev-signature { font-size: 8pt; color: #777; margin-bottom: 15px; }
+            .print-logo-box { display: flex; flex-direction: column; align-items: center; margin-bottom: 15px; }
+            .print-logo { height: 70px; margin-bottom: 10px; }
+            .print-sys-title { color: var(--zorros-blue); margin: 0; font-size: 18pt; font-weight: 900; letter-spacing: 2px; }
+            .print-title { font-size: 16pt; color: #333; font-weight: bold; text-transform: uppercase; margin: 10px 0 5px 0; }
+            .print-subtitle { font-size: 14pt; color: var(--zorros-red); font-weight: bold; margin: 0; }
+            
             .table-container { box-shadow: none; max-height: none; overflow: visible; }
             table { width: 100%; border: 1px solid #000; font-size: 10pt; font-family: 'Times New Roman', serif; border-collapse: collapse; }
             th, td, .col-status, .col-name { position: static !important; border-right: none !important; background-color: transparent !important; }
@@ -392,6 +404,10 @@
             </button>
             <input type="file" id="fileInput" accept=".txt,.json" onchange="loadFromFile(this)">
             
+            <button class="action-btn btn-logout" onclick="realizarLogout()" style="margin-top: 20px; border-color: var(--zorros-red); color: var(--zorros-red);">
+                <i class="fas fa-sign-out-alt"></i> <span class="action-text">Cerrar Sesión</span>
+            </button>
+
             <div class="dev-signature">
                 Desarrollado por Wenddell de Lima<br>Contacto: 223 5863 676
             </div>
@@ -402,8 +418,8 @@
         <div class="print-header-container">
             <div class="print-dev-signature">Desarrollado por Wenddell de Lima - Contacto: 223 5863 676</div>
             <div class="print-logo-box">
-                <h2 class="print-sys-title">LUMOS TECNOLOGIA</h2>
                 <img src="https://i.postimg.cc/0ygbRDWQ/Logo-indumentaria-minimalista-tipografia-azul-1-removebg-preview.png" class="print-logo" alt="Logo">
+                <h2 class="print-sys-title">LUMOS TECNOLOGIA</h2>
             </div>
             <h1 class="print-title" id="printTournamentName">Nome do Torneio</h1>
             <h3 class="print-subtitle" id="printSubtitle">Lista de Participantes</h3>
@@ -644,7 +660,6 @@
         const ADMIN_PASS_B64 = "QWRtaW4xOTky";  // Admin1992
         let currentUserRole = null; 
         let appUsers = [];
-        
         let tournaments = []; 
         let hayCambiosSinGuardar = false; 
         let currentTournamentId = null; 
@@ -719,6 +734,15 @@
             }
 
             errorMsg.style.display = 'block';
+        }
+
+        function realizarLogout() {
+            currentUserRole = null;
+            document.body.className = '';
+            document.getElementById('loginUser').value = '';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').style.display = 'none';
+            document.getElementById('loginOverlay').style.display = 'flex';
         }
 
         function liberarAcesso() {
@@ -834,7 +858,6 @@
         // 4. LÓGICA DE DADOS DOS TORNEIOS (COM FIREBASE)
         // =======================================================
         
-        // Esta função substitui o localStorage enviando as alterações para o Firebase
         function saveToLocal() { 
             if (currentTournamentId) {
                 const t = tournaments.find(item => item.id === currentTournamentId);
@@ -842,7 +865,6 @@
                     db.collection('tournaments').doc(t.id).set(t).catch(e => console.error("Error Firebase:", e));
                 }
             } else {
-                // Se não há torneio ativo selecionado (por exemplo, na reordenação)
                 tournaments.forEach(t => {
                     db.collection('tournaments').doc(t.id).set(t).catch(e => console.error(e));
                 });
@@ -871,7 +893,6 @@
                 tournaments.push(targetT); 
             } 
 
-            // Salva o novo torneio/editado no firebase
             db.collection('tournaments').doc(targetT.id).set(targetT).then(() => {
                 markUnsavedChanges(); 
                 isDirty = false; 
@@ -1237,7 +1258,7 @@
                 }
             });
             if (tablesGenerated === 0) { container.innerHTML = `<p style="text-align:center; padding:20px;">No hay series para mostrar en ${distType}.</p>`; }
-            document.getElementById('printSubtitle').innerText = `${t.name} - ${distType === 'All' ? 'Competición' : 'Distribución Final: ' + distType}`;
+            document.getElementById('printSubtitle').innerText = `Distribución Final: ${distType === 'All' ? 'General' : distType}`;
         }
 
         function openMoveModal(pId, evtName) {
@@ -1503,6 +1524,7 @@
                     });
                     tbody += '</tbody>'; table.innerHTML = thead + tbody; container.appendChild(table);
                 });
+                document.getElementById('printSubtitle').innerText = `Resultados: Equipo`;
                 return; 
             }
 
@@ -1555,7 +1577,7 @@
                 });
                 tbody += '</tbody>'; table.innerHTML = thead + tbody; container.appendChild(table);
             });
-            document.getElementById('printSubtitle').innerText = `${t.name} - Resultados: ${resType}`;
+            document.getElementById('printSubtitle').innerText = `Resultados: ${resType}`;
         }
 
         function renderTeamRanking() {
@@ -1640,7 +1662,7 @@
 
             html += `</tbody></table><div style="font-size:0.8rem; color:#666; margin-top:10px; padding:10px; background:#eee; border-radius:4px;"><strong>Reglas de Puntuación:</strong><br>1. Mínimo 4 atletas activos por equipo.<br>2. Participación en al menos 30% de las pruebas del torneo (Min: ${minEventsRequired}).<br>3. Puntuación: Total Puntos / Cantidad Atletas.<br>4. Tope Individual: Ningún atleta puede sumar más del 40% del total bruto del equipo.<br>5. Provas válidas: Mínimo 3 nadadores y 2 equipos diferentes.</div>`;
             container.innerHTML = html;
-            document.getElementById('printSubtitle').innerText = `${t.name} - Ranking de Clubes`;
+            document.getElementById('printSubtitle').innerText = `Ranking de Clubes`;
         }
 
         function timeToMs(timeStr) { if (!timeStr) return 999999999; const parts = timeStr.split(':'); if (parts.length !== 3) return 999999999; return (parseInt(parts[0]) * 60000) + (parseInt(parts[1]) * 1000) + parseInt(parts[2]); }
@@ -1805,7 +1827,7 @@
             reader.readAsText(file); input.value = ''; 
         }
 
-        function renderCategoryTables(catType) { document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active')); if(catType === 'Recreativo') document.getElementById('btn-recreativo').classList.add('active'); else if(catType === 'Competitivo') document.getElementById('btn-competitivo').classList.add('active'); else if(catType === 'All') document.getElementById('btn-all').classList.add('active'); const container = document.getElementById('generated-tables-container'); const filterContainer = document.getElementById('eventFilterContainer'); container.innerHTML = ''; currentCategoryGroups = {}; currentCategoryType = catType; filterContainer.style.display = 'none'; document.getElementById('btnCreateTeamEvent').style.display = 'none'; const t = tournaments.find(item => item.id === currentTournamentId); const processType = (type) => { const targetType = normalizeString(type); t.participants.forEach(p => { if (!p.compCat || !normalizeString(p.compCat).includes(targetType)) return; if (!p.indEvents || !Array.isArray(p.indEvents) || p.indEvents.length === 0) return; p.indEvents.forEach(event => { const key = `${event}|${p.gender}|${p.ageCat}|${type}`; if (!currentCategoryGroups[key]) currentCategoryGroups[key] = []; currentCategoryGroups[key].push(p); }); }); }; if (catType === 'All') { processType('Recreativo'); processType('Competitivo'); } else { processType(catType); } if (Object.keys(currentCategoryGroups).length === 0) { container.innerHTML = `<p style="text-align:center; padding:20px;">No se encontraron participantes.</p>`; return; } const allEvents = new Set(); Object.keys(currentCategoryGroups).forEach(key => { const [evtName] = key.split('|'); allEvents.add(evtName); }); const select = document.getElementById('eventFilterSelect'); select.innerHTML = '<option value="">Mostrar Todas</option>'; Array.from(allEvents).sort().forEach(evt => { const cleanName = evt.replace(/^[\w\d]+\s*[-–]\s*/, ''); const option = document.createElement('option'); option.value = evt; option.innerText = cleanName; select.appendChild(option); }); filterContainer.style.display = 'flex'; renderFilteredTables(); document.getElementById('printSubtitle').innerText = `${t.name} - Categorías: ${catType === 'All' ? 'General' : catType}`; }
+        function renderCategoryTables(catType) { document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active')); if(catType === 'Recreativo') document.getElementById('btn-recreativo').classList.add('active'); else if(catType === 'Competitivo') document.getElementById('btn-competitivo').classList.add('active'); else if(catType === 'All') document.getElementById('btn-all').classList.add('active'); const container = document.getElementById('generated-tables-container'); const filterContainer = document.getElementById('eventFilterContainer'); container.innerHTML = ''; currentCategoryGroups = {}; currentCategoryType = catType; filterContainer.style.display = 'none'; document.getElementById('btnCreateTeamEvent').style.display = 'none'; const t = tournaments.find(item => item.id === currentTournamentId); const processType = (type) => { const targetType = normalizeString(type); t.participants.forEach(p => { if (!p.compCat || !normalizeString(p.compCat).includes(targetType)) return; if (!p.indEvents || !Array.isArray(p.indEvents) || p.indEvents.length === 0) return; p.indEvents.forEach(event => { const key = `${event}|${p.gender}|${p.ageCat}|${type}`; if (!currentCategoryGroups[key]) currentCategoryGroups[key] = []; currentCategoryGroups[key].push(p); }); }); }; if (catType === 'All') { processType('Recreativo'); processType('Competitivo'); } else { processType(catType); } if (Object.keys(currentCategoryGroups).length === 0) { container.innerHTML = `<p style="text-align:center; padding:20px;">No se encontraron participantes.</p>`; return; } const allEvents = new Set(); Object.keys(currentCategoryGroups).forEach(key => { const [evtName] = key.split('|'); allEvents.add(evtName); }); const select = document.getElementById('eventFilterSelect'); select.innerHTML = '<option value="">Mostrar Todas</option>'; Array.from(allEvents).sort().forEach(evt => { const cleanName = evt.replace(/^[\w\d]+\s*[-–]\s*/, ''); const option = document.createElement('option'); option.value = evt; option.innerText = cleanName; select.appendChild(option); }); filterContainer.style.display = 'flex'; renderFilteredTables(); document.getElementById('printSubtitle').innerText = `Categorías: ${catType === 'All' ? 'General' : catType}`; }
         function applyEventFilter() { renderFilteredTables(); }
         function renderFilteredTables() { const container = document.getElementById('generated-tables-container'); container.innerHTML = ''; const filterValue = document.getElementById('eventFilterSelect').value; let keys = Object.keys(currentCategoryGroups); if (filterValue) { keys = keys.filter(k => k.startsWith(filterValue + '|')); } if (keys.length === 0) { container.innerHTML = `<p style="text-align:center; padding:20px;">No hay resultados.</p>`; return; } keys.sort((a, b) => { const [evtA, genA, ageA] = a.split('|'); const [evtB, genB, ageB] = b.split('|'); if (genA !== genB) return genA.localeCompare(genB); if (evtA !== evtB) return evtA.localeCompare(evtB); return ageA.localeCompare(ageB); }); keys.forEach(key => { const [eventName, gender, ageCat, catType] = key.split('|'); const participants = currentCategoryGroups[key]; const cleanEvent = eventName.replace(/^[\w\d]+\s*[-–]\s*/, ''); const cleanCat = ageCat.replace(/^[\w\d]+\s*[-–]\s*/, ''); const table = document.createElement('table'); table.className = 'generated-event-table'; const thead = `<thead><tr><td colspan="4" class="event-header"><span class="event-title-line">${cleanEvent}</span><span class="event-sub-line">${gender}</span><span class="event-sub-line">${cleanCat}</span><span class="event-sub-line">${catType}</span></td></tr><tr><th style="width:20%">Equipo</th><th style="width:40%">Nombre</th><th style="width:20%">DNI</th><th style="width:20%">Fecha Nac.</th></tr></thead>`; let tbody = '<tbody>'; participants.forEach(p => { tbody += `<tr><td>${p.team}</td><td>${p.name}</td><td>${p.dni}</td><td>${formatDate(p.dob)}</td></tr>`; }); tbody += '</tbody>'; table.innerHTML = thead + tbody; container.appendChild(table); }); }
         function renderTeamEvents() { document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active')); document.getElementById('btn-equipo').classList.add('active'); const container = document.getElementById('generated-tables-container'); container.innerHTML = ''; document.getElementById('eventFilterContainer').style.display = 'none'; document.getElementById('btnCreateTeamEvent').style.display = 'flex'; const t = tournaments.find(item => item.id === currentTournamentId); if (!t.teamEvents || t.teamEvents.length === 0) { container.innerHTML = `<p style="text-align:center; padding:20px;">No hay pruebas de equipo creadas.</p>`; return; } t.teamEvents.forEach(evt => { const table = document.createElement('table'); table.className = 'generated-event-table'; let thead = `<thead><tr><td colspan="3" class="event-header" style="position:relative;"><span class="event-title-line">${evt.title}</span><div class="team-table-actions"><button class="btn-mini-action" onclick="openAddTeamToEventModal('${evt.id}')">+ Agregar Equipo</button><button class="btn-mini-action" style="background:rgba(255,0,0,0.3);" onclick="deleteTeamEvent('${evt.id}')"><i class="fas fa-trash"></i></button></div></td></tr><tr><th style="width:30%">Equipo</th><th style="width:40%">Nombre</th><th style="width:30%">Estilo</th></tr></thead>`; let tbody = '<tbody>'; if (!evt.teams || evt.teams.length === 0) { tbody += `<tr><td colspan="3" style="text-align:center; padding:15px; color:#999;">Sin equipos inscriptos</td></tr>`; } else { evt.teams.forEach(team => { tbody += `<tr><td rowspan="4" style="font-weight:bold; background:#fcfcfc;">${team.name}<div class="team-row-actions"><button class="btn-team-edit" onclick="openAddTeamToEventModal('${evt.id}', '${team.id}')"><i class="fas fa-pencil-alt"></i></button><button class="btn-team-del" onclick="deleteTeamFromEvent('${evt.id}', '${team.id}')"><i class="fas fa-trash"></i></button></div></td><td>${team.swimmers[0].name}</td><td>${team.swimmers[0].style}</td></tr><tr><td>${team.swimmers[1].name}</td><td>${team.swimmers[1].style}</td></tr><tr><td>${team.swimmers[2].name}</td><td>${team.swimmers[2].style}</td></tr><tr><td>${team.swimmers[3].name}</td><td>${team.swimmers[3].style}</td></tr>`; }); } tbody += '</tbody>'; table.innerHTML = thead + tbody; container.appendChild(table); }); }
