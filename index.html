@@ -59,7 +59,7 @@
         
         body.role-viewer .btn-primary, body.role-viewer .icon-btn, body.role-viewer .btn-action-small, body.role-viewer .btn-team-edit,
         body.role-viewer .btn-team-del, body.role-viewer .btn-check-event, body.role-viewer .btn-move, body.role-viewer .btn-reorder,
-        body.role-viewer .btn-add-tag, body.role-viewer .btn-delete-tag, body.role-viewer .action-btn, body.role-viewer .btn-toolbar[onclick*="print"] {
+        body.role-viewer .btn-add-tag, body.role-viewer .btn-delete-tag, body.role-viewer .action-btn:not(.btn-logout), body.role-viewer .btn-toolbar[onclick*="print"] {
             display: none !important;
         }
         body.role-viewer input:not(.search-input), body.role-viewer select:not(#eventFilterSelect) {
@@ -237,17 +237,19 @@
         .print-header-container, .print-watermark { display: none; }
         @media print {
             @page { size: landscape; margin: 10mm; }
-            body { background-color: white; height: auto; overflow: visible; -webkit-print-color-adjust: exact; }
-            .sidebar, .tab-menu, .toolbar, .table-controls, #filterPanel, .card-actions, .action-column, .pruebas-sub-nav, .category-buttons, button, .btn-toolbar, .event-filter-bar, .team-table-actions, .team-row-actions, .btn-status-toggle, .btn-move { display: none !important; }
+            body { background-color: white !important; height: auto; overflow: visible; -webkit-print-color-adjust: exact; margin: 0 !important; padding: 0 !important; }
+            /* Esconde elementos indesejados, incluindo o modal */
+            .sidebar, .tab-menu, .toolbar, .table-controls, #filterPanel, .card-actions, .action-column, .pruebas-sub-nav, .category-buttons, button, .btn-toolbar, .event-filter-bar, .team-table-actions, .team-row-actions, .btn-status-toggle, .btn-move, 
+            .modal-overlay, .modal, #printResultsModal { display: none !important; }
+            
             .main-content { margin: 0; padding: 0; width: 100%; overflow: visible; }
             .tournament-header { display: none; }
             .print-watermark { display: block; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60%; opacity: 0.07; z-index: -1; }
             
-            /* Novo layout centralizado do Header de Impressão */
             .print-header-container { 
                 display: flex; 
                 flex-direction: column; 
-                align-items: center; /* Centraliza tudo horizontalmente */
+                align-items: center; 
                 margin-bottom: 30px; 
                 border-bottom: 2px solid var(--zorros-blue); 
                 padding-bottom: 20px; 
@@ -326,6 +328,22 @@
         .selection-item:hover { background-color: #e2e6ea; }
         .selection-item.selected { background-color: var(--zorros-blue); color: white; border-color: var(--zorros-blue); }
         #fileInput { display: none; }
+
+        /* --- PRINT MODAL STYLES --- */
+        .print-legend { display: flex; gap: 10px; margin-bottom: 15px; font-size: 0.75rem; font-weight: bold; flex-wrap: wrap; justify-content: center; }
+        .legend-item { padding: 4px 8px; border-radius: 4px; color: white; }
+        .bg-grey { background-color: #9e9e9e; }
+        .bg-yellow { background-color: #f39c12; }
+        .bg-green { background-color: #27ae60; }
+        .bg-blue { background-color: var(--zorros-blue); }
+        
+        .print-item { padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; transition: transform 0.1s; user-select: none; display: flex; justify-content: space-between; align-items: center; border: 2px solid transparent; }
+        .print-item:hover { transform: scale(1.01); filter: brightness(1.1); }
+        .print-item small { font-weight: normal; opacity: 0.9; }
+        .print-item.st-incomplete { background-color: #9e9e9e; }
+        .print-item.st-complete { background-color: #f39c12; }
+        .print-item.st-printed { background-color: #27ae60; }
+        .print-item.selected { background-color: var(--zorros-blue) !important; border-color: #111; }
     </style>
 </head>
 <body>
@@ -572,7 +590,7 @@
                     <button class="btn-cat" onclick="renderTeamRanking()" id="res-ranking" style="border: 2px solid #d4af37; color: #333;">Ranking por Equipo</button>
                 </div>
                 <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-                    <button class="btn-toolbar" onclick="window.print()"><i class="fas fa-print"></i> Imprimir Resultados</button>
+                    <button class="btn-toolbar" onclick="openPrintResultsModal()"><i class="fas fa-print"></i> Imprimir Resultados</button>
                 </div>
                 <div id="results-container"><p style="text-align:center; color:#777; margin-top:30px;">Seleccioná una categoría para ver el Ranking.</p></div>
             </div>
@@ -636,6 +654,35 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="printResultsModal">
+        <div class="modal modal-large" style="display: flex; flex-direction: column; max-height: 90vh; padding: 25px;">
+            <h2 class="modal-title" style="margin-bottom: 5px;">Imprimir Resultados</h2>
+            <p style="color:#666; margin-bottom:15px; font-size:0.95rem;">Seleccioná los resultados que deseás imprimir.</p>
+            
+            <div class="print-legend">
+                <span class="legend-item bg-grey">Incompleto</span>
+                <span class="legend-item bg-yellow">Completo</span>
+                <span class="legend-item bg-green">Ya Impreso</span>
+                <span class="legend-item bg-blue">Seleccionado</span>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <button class="btn-secondary" style="font-size: 0.85rem; padding: 6px 12px;" onclick="toggleSelectAllPrint()">Seleccionar Todo</button>
+            </div>
+
+            <div id="printItemsList" style="flex-grow: 1; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; min-height: 200px;">
+                </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee; padding-top: 15px;">
+                <button class="btn-secondary" style="background: #ffebee; color: var(--zorros-red); font-size: 0.85rem;" onclick="clearPrintHistory()">Limpiar Historial de Impresión</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-secondary" onclick="cancelPrintSelection()">Cancelar</button>
+                    <button class="btn-primary" onclick="executePrintSelected()"><i class="fas fa-print"></i> Imprimir Seleccionados</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // =======================================================
         // 1. CONFIGURAÇÃO FIREBASE
@@ -649,15 +696,15 @@
             appId: "1:564997822055:web:6a48daec1c006c7b1e66c2"
         };
 
-        // Inicializar Firebase (usando UMD Compat para não quebrar o código existente)
+        // Inicializar Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
         // =======================================================
-        // 2. VARIÁVEIS GLOBAIS E LÓGICA DE LOGIN
+        // 2. VARIÁVEIS GLOBAIS
         // =======================================================
-        const ADMIN_USER_B64 = "QWRtaW4=";      // Admin
-        const ADMIN_PASS_B64 = "QWRtaW4xOTky";  // Admin1992
+        const ADMIN_USER_B64 = "QWRtaW4=";
+        const ADMIN_PASS_B64 = "QWRtaW4xOTky";
         let currentUserRole = null; 
         let appUsers = [];
         let tournaments = []; 
@@ -671,8 +718,10 @@
         let currentCategoryGroups = {}; 
         let currentCategoryType = "";
         let globalHeatsData = {};
+        
+        let currentResultType = 'Recreativo'; 
+        let temporarySelectedKeys = []; // Chaves selecionadas antes da confirmação da impressão
 
-        // Carregar dados iniciais do Firebase ao abrir a página
         window.onload = async function() { 
             const loginBtn = document.getElementById('btnLoginBtn');
             const loadingText = document.getElementById('loginLoading');
@@ -682,17 +731,14 @@
             }
 
             try {
-                // Baixar Usuários do Firestore
                 const usersSnap = await db.collection('users').get();
                 appUsers = [];
                 usersSnap.forEach(doc => { appUsers.push(doc.data()); });
 
-                // Baixar Torneios do Firestore
                 const tourneySnap = await db.collection('tournaments').get();
                 tournaments = [];
                 tourneySnap.forEach(doc => { tournaments.push(doc.data()); });
 
-                // Habilitar Login após carregar os dados
                 loadingText.style.display = 'none';
                 loginBtn.disabled = false;
                 loginBtn.style.backgroundColor = "var(--zorros-blue)";
@@ -824,7 +870,6 @@
                 appUsers.push(userData);
             }
 
-            // Salvar no Firebase
             db.collection('users').doc(username).set(userData).then(() => {
                 fecharModalUsuario();
                 renderUsersTable();
@@ -888,7 +933,7 @@
                 } 
             } else { 
                 const newId = Date.now().toString();
-                targetT = { id: newId, name: name, year: year, participants: [], tags: {} };
+                targetT = { id: newId, name: name, year: year, participants: [], tags: {}, printHistory: [] };
                 for (let key in tagMap) { targetT.tags[key] = []; } 
                 tournaments.push(targetT); 
             } 
@@ -970,10 +1015,11 @@
             if (!t.tags) { t.tags = {}; for (let key in tagMap) t.tags[key] = []; } 
             if (!t.participants) t.participants = [];
             if (!t.teamEvents) t.teamEvents = []; if(!t.eventOrder) t.eventOrder = []; 
+            if (!t.printHistory) t.printHistory = [];
             for (let key in tagMap) { if(!t.tags[key]) t.tags[key] = []; } 
             currentTournamentId = id; document.getElementById('detailName').innerText = t.name;
             document.getElementById('detailYear').innerText = t.year;
-            document.getElementById('printTournamentName').innerText = `${t.name} ${t.year}`;
+            document.getElementById('printTournamentName').innerText = `${t.name} - ${t.year}`;
             document.getElementById('printSubtitle').innerText = `Lista de Participantes`; clearAllFilters(false); switchTab('participantes'); renderParticipants(); renderTags(); 
             document.getElementById('view-list').style.display = 'none';
             document.getElementById('view-admin').style.display = 'none';
@@ -1261,6 +1307,373 @@
             document.getElementById('printSubtitle').innerText = `Distribución Final: ${distType === 'All' ? 'General' : distType}`;
         }
 
+        // =======================================================
+        // GESTÃO DE IMPRESSÃO INTELIGENTE DE RESULTADOS
+        // =======================================================
+        function renderResults(resType) {
+            currentResultType = resType; // Atualiza a aba atual
+            
+            document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active'));
+            if(resType === 'Recreativo') document.getElementById('res-recreativo').classList.add('active');
+            else if(resType === 'Competitivo') document.getElementById('res-competitivo').classList.add('active');
+            else if(resType === 'Equipo') document.getElementById('res-equipo').classList.add('active');
+
+            const container = document.getElementById('results-container');
+            container.innerHTML = '';
+            const t = tournaments.find(item => item.id === currentTournamentId);
+            
+            if(resType === 'Equipo') { 
+                if (!t.teamEvents || t.teamEvents.length === 0) { container.innerHTML = "<p style='text-align:center; padding:20px;'>No hay resultados disponibles.</p>"; return; }
+                t.teamEvents.forEach(evt => {
+                    if(!evt.teams || evt.teams.length === 0) return;
+                    let sortedTeams = [...evt.teams];
+                    sortedTeams.sort((a, b) => { const tA = timeToMs(a.time); const tB = timeToMs(b.time); return tA - tB; });
+                    const table = document.createElement('table');
+                    table.className = 'generated-event-table';
+                    table.setAttribute('data-print-key', `EQUIPO_${evt.id}`); // ID pra impressão
+                    
+                    const thead = `<thead><tr><td colspan="4" class="event-header" style="background-color: #333;"><span class="event-title-line">${evt.title}</span><span class="event-sub-line">RANKING POR EQUIPO</span></td></tr><tr><th style="width:10%">Pos.</th><th style="width:30%">Equipo</th><th style="width:40%">Integrantes</th><th style="width:20%">Tiempo</th></tr></thead>`;
+                    let tbody = '<tbody>'; let rank = 1;
+                    sortedTeams.forEach(team => {
+                        const timeStr = team.time || '';
+                        let displayRank = timeStr ? rank : '-'; let rowClass = '';
+                        if (timeStr) { if (rank === 1) rowClass = 'rank-gold'; else if (rank === 2) rowClass = 'rank-silver'; else if (rank === 3) rowClass = 'rank-bronze'; rank++; }
+                        let medalIcon = '';
+                        if (rowClass === 'rank-gold') medalIcon = '<i class="fas fa-medal medal-icon medal-gold"></i>';
+                        if (rowClass === 'rank-silver') medalIcon = '<i class="fas fa-medal medal-icon medal-silver"></i>';
+                        if (rowClass === 'rank-bronze') medalIcon = '<i class="fas fa-medal medal-icon medal-bronze"></i>';
+                        let swimmersList = team.swimmers.map(s => s.name).filter(n => n).join(', ');
+                        tbody += `<tr class="${rowClass}"><td style="font-weight:bold; text-align:center;">${displayRank}</td><td>${medalIcon} ${team.name}</td><td style="font-size:0.9rem; color:#555;">${swimmersList}</td><td style="font-family:monospace; font-weight:bold;">${timeStr || '-'}</td></tr>`;
+                    });
+                    tbody += '</tbody>'; table.innerHTML = thead + tbody; container.appendChild(table);
+                });
+                document.getElementById('printSubtitle').innerText = `Resultados: Equipo`;
+                return; 
+            }
+
+            const groups = {};
+            const targetType = normalizeString(resType);
+            t.participants.forEach(p => {
+                if (!p.compCat || !normalizeString(p.compCat).includes(targetType)) return;
+                if (!p.indEvents) return;
+                p.indEvents.forEach(evt => { const key = `${evt}|${p.gender}|${p.ageCat}|${p.compCat}`; if(!groups[key]) groups[key] = []; groups[key].push({ ...p, _event: evt }); });
+            });
+            const sortedKeys = Object.keys(groups).sort();
+            if(sortedKeys.length === 0) { container.innerHTML = "<p style='text-align:center; padding:20px;'>No hay resultados disponibles.</p>"; return; }
+
+            const pointsScale = [10, 8, 6, 5, 4, 3, 2, 1];
+            sortedKeys.forEach(key => {
+                const [eventName, gender, ageCat, compCat] = key.split('|'); let participants = groups[key];
+                const distinctTeams = new Set(participants.map(p => p.team)).size;
+                const countP = participants.length;
+                const canScore = (countP >= 3 && distinctTeams >= 2);
+
+                participants.sort((a, b) => {
+                    const statusA = !a.present ? 'DNS' : (a[`status_${eventName}`] || 'OK');
+                    const statusB = !b.present ? 'DNS' : (b[`status_${eventName}`] || 'OK');
+                    if (statusA !== 'OK' && statusB === 'OK') return 1; if (statusA === 'OK' && statusB !== 'OK') return -1; if (statusA !== 'OK' && statusB !== 'OK') return 0; 
+                    const timeA = timeToMs(a[`time_${eventName}`]); const timeB = timeToMs(b[`time_${eventName}`]); return timeA - timeB;
+                });
+                
+                const table = document.createElement('table'); 
+                table.className = 'generated-event-table';
+                table.setAttribute('data-print-key', key); // ID pra impressão
+
+                const cleanEvent = eventName.replace(/^[\w\d]+\s*[-–]\s*/, ''); const cleanAge = ageCat.replace(/^[\w\d]+\s*[-–]\s*/, '');
+                const thead = `<thead><tr><td colspan="6" class="event-header" style="background-color: #333;"><span class="event-title-line">${cleanEvent}</span><span class="event-sub-line">${gender} | ${cleanAge} | ${compCat}</span></td></tr><tr><th style="width:10%">Pos.</th><th style="width:30%">Nombre</th><th style="width:20%">Equipo</th><th style="width:15%">Tiempo</th><th style="width:10%">Pts</th><th style="width:15%">Obs.</th></tr></thead>`;
+                let tbody = '<tbody>'; let rank = 1;
+                participants.forEach(p => {
+                    const status = !p.present ? 'DNS' : (p[`status_${eventName}`] || 'OK');
+                    const timeStr = p[`time_${eventName}`] || ''; const reason = p[`reason_${eventName}`] || '';
+                    let displayRank = status === 'OK' && timeStr ? rank : '-'; let rowClass = ''; let obsText = ''; let points = 0;
+
+                    if (status === 'OK' && timeStr) {
+                        if (canScore && rank <= 8) points = pointsScale[rank - 1];
+                        if (rank === 1) rowClass = 'rank-gold'; else if (rank === 2) rowClass = 'rank-silver'; else if (rank === 3) rowClass = 'rank-bronze'; rank++;
+                    } else {
+                        if (status === 'DNS') obsText = !p.present ? "Ausente" : "No Participó"; else if (status === 'DSQ') obsText = `DSQ: ${reason}`; else obsText = "Sin Tiempo";
+                    }
+                    if (!canScore && status === 'OK' && timeStr) { obsText = "Sin Pts (Min 3 nad/2 eq)"; }
+
+                    let medalIcon = '';
+                    if (rowClass === 'rank-gold') medalIcon = '<i class="fas fa-medal medal-icon medal-gold"></i>';
+                    if (rowClass === 'rank-silver') medalIcon = '<i class="fas fa-medal medal-icon medal-silver"></i>';
+                    if (rowClass === 'rank-bronze') medalIcon = '<i class="fas fa-medal medal-icon medal-bronze"></i>';
+                    tbody += `<tr class="${rowClass}"><td style="font-weight:bold; text-align:center;">${displayRank}</td><td>${medalIcon} ${p.name}</td><td>${p.team}</td><td style="font-family:monospace;">${timeStr || '-'}</td><td style="text-align:center; font-weight:bold;">${points > 0 ? points : '-'}</td><td style="font-size:0.85rem; color:#555;">${obsText}</td></tr>`;
+                });
+                tbody += '</tbody>'; table.innerHTML = thead + tbody; container.appendChild(table);
+            });
+            document.getElementById('printSubtitle').innerText = `Resultados: ${resType}`;
+        }
+
+        function renderTeamRanking() {
+            currentResultType = 'Ranking'; // Atualiza a aba atual
+            
+            document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active'));
+            document.getElementById('res-ranking').classList.add('active');
+
+            const container = document.getElementById('results-container');
+            container.innerHTML = '';
+            const t = tournaments.find(item => item.id === currentTournamentId);
+
+            const teamStats = {};
+            const initTeam = (name) => {
+                if (!teamStats[name]) teamStats[name] = { rawPoints: 0, validAthletes: new Set(), eventsParticipated: new Set(), athleteScores: {}, finalScore: 0, isValid: true, reasons: [] };
+            };
+
+            const pInd = [10, 8, 6, 5, 4, 3, 2, 1];
+            const allTournamentEvents = new Set();
+            if(t.participants) { t.participants.forEach(p => { if(p.indEvents) p.indEvents.forEach(e => allTournamentEvents.add(e)); }); }
+            const totalEventsCount = allTournamentEvents.size;
+            const minEventsRequired = Math.ceil(totalEventsCount * 0.30);
+
+            const groups = {};
+            t.participants.forEach(p => {
+                if(!p.indEvents) return;
+                p.indEvents.forEach(evt => { const key = `${evt}|${p.gender}|${p.ageCat}|${p.compCat}`; if(!groups[key]) groups[key] = []; groups[key].push({ ...p, _event: evt }); });
+            });
+            Object.keys(groups).forEach(key => {
+                let participants = groups[key];
+                const distinctTeams = new Set(participants.map(p => p.team)).size;
+                const countP = participants.length;
+                const canScore = (countP >= 3 && distinctTeams >= 2);
+
+                participants = participants.filter(p => { const s = p[`status_${p._event}`]; return (s === 'OK' || !s) && p[`time_${p._event}`] && p.present; });
+                participants.sort((a, b) => timeToMs(a[`time_${a._event}`]) - timeToMs(b[`time_${b._event}`]));
+
+                participants.forEach((p, idx) => {
+                    initTeam(p.team); teamStats[p.team].validAthletes.add(p.id); teamStats[p.team].eventsParticipated.add(p._event);
+                    if (canScore && idx < pInd.length) {
+                        const pts = pInd[idx]; teamStats[p.team].rawPoints += pts;
+                        if(!teamStats[p.team].athleteScores[p.id]) teamStats[p.team].athleteScores[p.id] = 0;
+                        teamStats[p.team].athleteScores[p.id] += pts;
+                    }
+                });
+            });
+            const leaderboard = [];
+            Object.entries(teamStats).forEach(([name, stats]) => {
+                if (stats.validAthletes.size < 4) { stats.isValid = false; stats.reasons.push(`< 4 Atletas (${stats.validAthletes.size})`); }
+                if (stats.eventsParticipated.size < minEventsRequired) { stats.isValid = false; stats.reasons.push(`< 30% Provas (${stats.eventsParticipated.size}/${totalEventsCount})`); }
+
+                const capLimit = stats.rawPoints * 0.40; let adjustedTotal = 0; let capTriggered = false;
+                const scorers = Object.keys(stats.athleteScores);
+                if(scorers.length === 0) { adjustedTotal = 0; } 
+                else {
+                    scorers.forEach(athId => {
+                        let score = stats.athleteScores[athId];
+                        if (score > capLimit) { score = capLimit; capTriggered = true; }
+                        adjustedTotal += score;
+                    });
+                }
+                
+                if (capTriggered) { stats.reasons.push("Tope 40% Aplicado"); }
+                const divisor = stats.validAthletes.size > 0 ? stats.validAthletes.size : 1;
+                stats.finalScore = adjustedTotal / divisor;
+                leaderboard.push({ name, ...stats });
+            });
+            leaderboard.sort((a, b) => { if (a.isValid && !b.isValid) return -1; if (!a.isValid && b.isValid) return 1; return b.finalScore - a.finalScore; });
+
+            if (leaderboard.length === 0) { container.innerHTML = "<p style='text-align:center; padding:20px;'>No hay datos suficientes para el ranking.</p>"; return; }
+
+            const table = document.createElement('table');
+            table.className = 'generated-event-table';
+            table.setAttribute('data-print-key', 'RANKING_ALL');
+
+            let html = `<thead><tr><td colspan="6" class="event-header" style="background-color: var(--zorros-blue);"><span class="event-title-line">CAMPEONATO POR EQUIPOS (Promedio)</span></td></tr><tr><th style="width:10%">Pos.</th><th style="width:30%">Equipo</th><th style="width:10%">Atletas</th><th style="width:10%">Provas</th><th style="width:15%">Puntaje Final</th><th style="width:25%">Obs.</th></tr></thead><tbody>`;
+            let rank = 1;
+            leaderboard.forEach((team) => {
+                let rowClass = ""; let displayRank = "-";
+                if (team.isValid) {
+                    if(rank===1) rowClass="rank-gold"; if(rank===2) rowClass="rank-silver"; if(rank===3) rowClass="rank-bronze";
+                    displayRank = rank++;
+                } else { rowClass = "row-error"; }
+                
+                const obsText = team.reasons.join(", "); const finalScoreDisplay = team.finalScore.toFixed(2);
+                html += `<tr class="${rowClass}"><td style="font-weight:bold; text-align:center;">${displayRank}</td><td style="font-weight:bold;">${team.name}</td><td style="text-align:center;">${team.validAthletes.size}</td><td style="text-align:center;">${team.eventsParticipated.size}</td><td style="text-align:center; font-weight:bold; font-size:1.1rem;">${finalScoreDisplay}</td><td style="font-size:0.85rem; color:#d32f2f;">${obsText}</td></tr>`;
+            });
+
+            html += `</tbody></table><div style="font-size:0.8rem; color:#666; margin-top:10px; padding:10px; background:#eee; border-radius:4px;"><strong>Reglas de Puntuación:</strong><br>1. Mínimo 4 atletas activos por equipo.<br>2. Participación en al menos 30% de las pruebas del torneo (Min: ${minEventsRequired}).<br>3. Puntuación: Total Puntos / Cantidad Atletas.<br>4. Tope Individual: Ningún atleta puede sumar más del 40% del total bruto del equipo.<br>5. Provas válidas: Mínimo 3 nadadores y 2 equipos diferentes.</div>`;
+            table.innerHTML = html;
+            container.appendChild(table);
+            document.getElementById('printSubtitle').innerText = `Ranking de Clubes`;
+        }
+
+        function openPrintResultsModal() {
+            if (!currentResultType) return;
+            const t = tournaments.find(item => item.id === currentTournamentId);
+            if (!t.printHistory) t.printHistory = [];
+            
+            const container = document.getElementById('printItemsList');
+            container.innerHTML = '';
+            let items = [];
+            
+            if (currentResultType === 'Equipo') {
+                if (!t.teamEvents || t.teamEvents.length === 0) {
+                    showToast("No hay resultados de equipo para imprimir."); return;
+                }
+                t.teamEvents.forEach(evt => {
+                    const key = `EQUIPO_${evt.id}`;
+                    let isComplete = true;
+                    if (!evt.teams || evt.teams.length === 0) isComplete = false;
+                    else { evt.teams.forEach(tm => { if (!tm.time) isComplete = false; }); }
+                    items.push({ key: key, title: evt.title, subtitle: 'Ranking por Equipo', complete: isComplete });
+                });
+            } else if (currentResultType === 'Ranking') {
+                items.push({ key: 'RANKING_ALL', title: 'Campeonato por Equipos (Promedio)', subtitle: 'Ranking General', complete: true });
+            } else {
+                const groups = {};
+                const targetType = normalizeString(currentResultType);
+                t.participants.forEach(p => {
+                    if (!p.compCat || !normalizeString(p.compCat).includes(targetType)) return;
+                    if (!p.indEvents) return;
+                    p.indEvents.forEach(evt => {
+                        const key = `${evt}|${p.gender}|${p.ageCat}|${p.compCat}`;
+                        if(!groups[key]) groups[key] = [];
+                        groups[key].push({ ...p, _event: evt });
+                    });
+                });
+                
+                Object.keys(groups).sort().forEach(key => {
+                    const [eventName, gender, ageCat, compCat] = key.split('|');
+                    const participants = groups[key];
+                    let isComplete = true;
+                    participants.forEach(p => {
+                        const status = !p.present ? 'DNS' : (p[`status_${eventName}`] || 'OK');
+                        const timeStr = p[`time_${eventName}`] || '';
+                        if (status === 'OK' && !timeStr) isComplete = false;
+                    });
+                    
+                    const cleanEvent = eventName.replace(/^[\w\d]+\s*[-–]\s*/, '');
+                    const cleanAge = ageCat.replace(/^[\w\d]+\s*[-–]\s*/, '');
+                    items.push({ key: key, title: cleanEvent, subtitle: `${gender} | ${cleanAge} | ${compCat}`, complete: isComplete });
+                });
+            }
+            
+            if (items.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#777; margin-top:20px;">No hay resultados para imprimir.</p>';
+            } else {
+                items.forEach(item => {
+                    const div = document.createElement('div');
+                    let stClass = item.complete ? 'st-complete' : 'st-incomplete';
+                    if (t.printHistory.includes(item.key)) stClass = 'st-printed';
+                    
+                    div.className = `print-item ${stClass}`;
+                    div.dataset.key = item.key;
+                    div.innerHTML = `<div>${item.title}<br><small>${item.subtitle}</small></div><i class="fas fa-check-circle check-icon" style="opacity:0.3; font-size:1.5rem;"></i>`;
+                    
+                    div.onclick = function() {
+                        this.classList.toggle('selected');
+                        const icon = this.querySelector('.check-icon');
+                        icon.style.opacity = this.classList.contains('selected') ? '1' : '0.3';
+                    };
+                    container.appendChild(div);
+                });
+            }
+            
+            document.getElementById('printResultsModal').style.display = 'flex';
+        }
+
+        function toggleSelectAllPrint() {
+            const items = document.querySelectorAll('#printItemsList .print-item');
+            const allSelected = Array.from(items).every(item => item.classList.contains('selected'));
+            
+            items.forEach(item => {
+                if (allSelected) {
+                    item.classList.remove('selected');
+                    item.querySelector('.check-icon').style.opacity = '0.3';
+                } else {
+                    item.classList.add('selected');
+                    item.querySelector('.check-icon').style.opacity = '1';
+                }
+            });
+        }
+
+        function cancelPrintSelection() {
+            document.getElementById('printResultsModal').style.display = 'none';
+            temporarySelectedKeys = [];
+        }
+
+        function executePrintSelected() {
+            const selectedItems = document.querySelectorAll('#printItemsList .print-item.selected');
+            if (selectedItems.length === 0) {
+                showToast("Seleccioná al menos una tabla para imprimir.");
+                return;
+            }
+            
+            // Salva as chaves selecionadas temporariamente
+            temporarySelectedKeys = Array.from(selectedItems).map(item => item.dataset.key);
+            
+            // Oculta o modal e esconde as tabelas que não foram selecionadas
+            document.getElementById('printResultsModal').style.display = 'none';
+            
+            const tables = document.querySelectorAll('#results-container .generated-event-table');
+            tables.forEach(table => {
+                const key = table.getAttribute('data-print-key');
+                if (temporarySelectedKeys.includes(key)) {
+                    table.style.display = '';
+                } else {
+                    table.style.display = 'none';
+                }
+            });
+            
+            // Dispara a impressão
+            window.print(); 
+        }
+
+        // Listener de quando a janela de impressão do navegador fecha (sucesso ou cancelada)
+        window.addEventListener('afterprint', () => {
+            if (temporarySelectedKeys.length > 0) {
+                // Restaura todas as tabelas
+                const tables = document.querySelectorAll('#results-container .generated-event-table');
+                tables.forEach(table => table.style.display = '');
+
+                // Abre o modal de confirmação para saber se realmente imprimiu
+                customConfirm("¿La impresión fue exitosa?", () => {
+                    // SE SIM: Grava no histórico e atualiza as cores para verde
+                    const t = tournaments.find(item => item.id === currentTournamentId);
+                    if (!t.printHistory) t.printHistory = [];
+                    
+                    let changed = false;
+                    temporarySelectedKeys.forEach(key => {
+                        if (!t.printHistory.includes(key)) {
+                            t.printHistory.push(key);
+                            changed = true;
+                        }
+                    });
+                    
+                    if (changed) saveToLocal();
+                    temporarySelectedKeys = []; // Limpa cache
+                    showToast("Historial actualizado.", "success");
+                    
+                }, () => {
+                    // SE NÃO: Reabre o modal de seleção com as seleções intactas
+                    showToast("Impresión cancelada. El historial no se modificó.");
+                    document.getElementById('printResultsModal').style.display = 'flex';
+                });
+            }
+        });
+
+        function clearPrintHistory() {
+            customConfirm("¿Estás seguro de que querés borrar el historial? Las tablas volverán a su color original (incompleto/completo).", () => {
+                const t = tournaments.find(item => item.id === currentTournamentId);
+                const currentKeys = Array.from(document.querySelectorAll('#printItemsList .print-item')).map(item => item.dataset.key);
+                
+                if (t.printHistory) {
+                    t.printHistory = t.printHistory.filter(key => !currentKeys.includes(key));
+                    saveToLocal();
+                }
+                
+                openPrintResultsModal(); // Reabre o modal para atualizar as cores
+            });
+        }
+
+        // =======================================================
+        // UTILIDADES EXTRAS
+        // =======================================================
+        function timeToMs(timeStr) { if (!timeStr) return 999999999; const parts = timeStr.split(':'); if (parts.length !== 3) return 999999999; return (parseInt(parts[0]) * 60000) + (parseInt(parts[1]) * 1000) + parseInt(parts[2]); }
+        function processBigGroup(participants, heatsArray, limit) { for (let i = 0; i < participants.length; i += limit) heatsArray.push(participants.slice(i, i + limit)); }
+        function formatTimeInput(input) { let v = input.value.replace(/\D/g, ''); if (v.length > 6) v = v.slice(0, 6); if (v.length >= 5) input.value = `${v.slice(0,2)}:${v.slice(2,4)}:${v.slice(4,6)}`; else if (v.length >= 3) input.value = `${v.slice(0,2)}:${v.slice(2)}`; else input.value = v; }
+        
         function openMoveModal(pId, evtName) {
             const t = tournaments.find(item => item.id === currentTournamentId);
             const p = t.participants.find(item => item.id === pId);
@@ -1491,186 +1904,6 @@
             saveToLocal();
             refreshCurrentPruebasView();
         }
-
-        function renderResults(resType) {
-            document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active'));
-            if(resType === 'Recreativo') document.getElementById('res-recreativo').classList.add('active');
-            else if(resType === 'Competitivo') document.getElementById('res-competitivo').classList.add('active');
-            else if(resType === 'Equipo') document.getElementById('res-equipo').classList.add('active');
-
-            const container = document.getElementById('results-container');
-            container.innerHTML = '';
-            const t = tournaments.find(item => item.id === currentTournamentId);
-            if(resType === 'Equipo') { 
-                if (!t.teamEvents || t.teamEvents.length === 0) { container.innerHTML = "<p style='text-align:center; padding:20px;'>No hay resultados disponibles.</p>"; return; }
-                t.teamEvents.forEach(evt => {
-                    if(!evt.teams || evt.teams.length === 0) return;
-                    let sortedTeams = [...evt.teams];
-                    sortedTeams.sort((a, b) => { const tA = timeToMs(a.time); const tB = timeToMs(b.time); return tA - tB; });
-                    const table = document.createElement('table');
-                    table.className = 'generated-event-table';
-                    const thead = `<thead><tr><td colspan="4" class="event-header" style="background-color: #333;"><span class="event-title-line">${evt.title}</span><span class="event-sub-line">RANKING POR EQUIPO</span></td></tr><tr><th style="width:10%">Pos.</th><th style="width:30%">Equipo</th><th style="width:40%">Integrantes</th><th style="width:20%">Tiempo</th></tr></thead>`;
-                    let tbody = '<tbody>'; let rank = 1;
-                    sortedTeams.forEach(team => {
-                        const timeStr = team.time || '';
-                        let displayRank = timeStr ? rank : '-'; let rowClass = '';
-                        if (timeStr) { if (rank === 1) rowClass = 'rank-gold'; else if (rank === 2) rowClass = 'rank-silver'; else if (rank === 3) rowClass = 'rank-bronze'; rank++; }
-                        let medalIcon = '';
-                        if (rowClass === 'rank-gold') medalIcon = '<i class="fas fa-medal medal-icon medal-gold"></i>';
-                        if (rowClass === 'rank-silver') medalIcon = '<i class="fas fa-medal medal-icon medal-silver"></i>';
-                        if (rowClass === 'rank-bronze') medalIcon = '<i class="fas fa-medal medal-icon medal-bronze"></i>';
-                        let swimmersList = team.swimmers.map(s => s.name).filter(n => n).join(', ');
-                        tbody += `<tr class="${rowClass}"><td style="font-weight:bold; text-align:center;">${displayRank}</td><td>${medalIcon} ${team.name}</td><td style="font-size:0.9rem; color:#555;">${swimmersList}</td><td style="font-family:monospace; font-weight:bold;">${timeStr || '-'}</td></tr>`;
-                    });
-                    tbody += '</tbody>'; table.innerHTML = thead + tbody; container.appendChild(table);
-                });
-                document.getElementById('printSubtitle').innerText = `Resultados: Equipo`;
-                return; 
-            }
-
-            const groups = {};
-            const targetType = normalizeString(resType);
-            t.participants.forEach(p => {
-                if (!p.compCat || !normalizeString(p.compCat).includes(targetType)) return;
-                if (!p.indEvents) return;
-                p.indEvents.forEach(evt => { const key = `${evt}|${p.gender}|${p.ageCat}|${p.compCat}`; if(!groups[key]) groups[key] = []; groups[key].push({ ...p, _event: evt }); });
-            });
-            const sortedKeys = Object.keys(groups).sort();
-            if(sortedKeys.length === 0) { container.innerHTML = "<p style='text-align:center; padding:20px;'>No hay resultados disponibles.</p>"; return; }
-
-            const pointsScale = [10, 8, 6, 5, 4, 3, 2, 1];
-            sortedKeys.forEach(key => {
-                const [eventName, gender, ageCat, compCat] = key.split('|'); let participants = groups[key];
-                const distinctTeams = new Set(participants.map(p => p.team)).size;
-                const countP = participants.length;
-                const canScore = (countP >= 3 && distinctTeams >= 2);
-
-                participants.sort((a, b) => {
-                    const statusA = !a.present ? 'DNS' : (a[`status_${eventName}`] || 'OK');
-                    const statusB = !b.present ? 'DNS' : (b[`status_${eventName}`] || 'OK');
-                    if (statusA !== 'OK' && statusB === 'OK') return 1; if (statusA === 'OK' && statusB !== 'OK') return -1; if (statusA !== 'OK' && statusB !== 'OK') return 0; 
-                    const timeA = timeToMs(a[`time_${eventName}`]); const timeB = timeToMs(b[`time_${eventName}`]); return timeA - timeB;
-                });
-                
-                const table = document.createElement('table'); table.className = 'generated-event-table';
-                const cleanEvent = eventName.replace(/^[\w\d]+\s*[-–]\s*/, ''); const cleanAge = ageCat.replace(/^[\w\d]+\s*[-–]\s*/, '');
-                const thead = `<thead><tr><td colspan="6" class="event-header" style="background-color: #333;"><span class="event-title-line">${cleanEvent}</span><span class="event-sub-line">${gender} | ${cleanAge} | ${compCat}</span></td></tr><tr><th style="width:10%">Pos.</th><th style="width:30%">Nombre</th><th style="width:20%">Equipo</th><th style="width:15%">Tiempo</th><th style="width:10%">Pts</th><th style="width:15%">Obs.</th></tr></thead>`;
-                let tbody = '<tbody>'; let rank = 1;
-                participants.forEach(p => {
-                    const status = !p.present ? 'DNS' : (p[`status_${eventName}`] || 'OK');
-                    const timeStr = p[`time_${eventName}`] || ''; const reason = p[`reason_${eventName}`] || '';
-                    let displayRank = status === 'OK' && timeStr ? rank : '-'; let rowClass = ''; let obsText = ''; let points = 0;
-
-                    if (status === 'OK' && timeStr) {
-                        if (canScore && rank <= 8) points = pointsScale[rank - 1];
-                        if (rank === 1) rowClass = 'rank-gold'; else if (rank === 2) rowClass = 'rank-silver'; else if (rank === 3) rowClass = 'rank-bronze'; rank++;
-                    } else {
-                        if (status === 'DNS') obsText = !p.present ? "Ausente" : "No Participó"; else if (status === 'DSQ') obsText = `DSQ: ${reason}`; else obsText = "Sin Tiempo";
-                    }
-                    if (!canScore && status === 'OK' && timeStr) { obsText = "Sin Pts (Min 3 nad/2 eq)"; }
-
-                    let medalIcon = '';
-                    if (rowClass === 'rank-gold') medalIcon = '<i class="fas fa-medal medal-icon medal-gold"></i>';
-                    if (rowClass === 'rank-silver') medalIcon = '<i class="fas fa-medal medal-icon medal-silver"></i>';
-                    if (rowClass === 'rank-bronze') medalIcon = '<i class="fas fa-medal medal-icon medal-bronze"></i>';
-                    tbody += `<tr class="${rowClass}"><td style="font-weight:bold; text-align:center;">${displayRank}</td><td>${medalIcon} ${p.name}</td><td>${p.team}</td><td style="font-family:monospace;">${timeStr || '-'}</td><td style="text-align:center; font-weight:bold;">${points > 0 ? points : '-'}</td><td style="font-size:0.85rem; color:#555;">${obsText}</td></tr>`;
-                });
-                tbody += '</tbody>'; table.innerHTML = thead + tbody; container.appendChild(table);
-            });
-            document.getElementById('printSubtitle').innerText = `Resultados: ${resType}`;
-        }
-
-        function renderTeamRanking() {
-            document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active'));
-            document.getElementById('res-ranking').classList.add('active');
-
-            const container = document.getElementById('results-container');
-            container.innerHTML = '';
-            const t = tournaments.find(item => item.id === currentTournamentId);
-
-            const teamStats = {};
-            const initTeam = (name) => {
-                if (!teamStats[name]) teamStats[name] = { rawPoints: 0, validAthletes: new Set(), eventsParticipated: new Set(), athleteScores: {}, finalScore: 0, isValid: true, reasons: [] };
-            };
-
-            const pInd = [10, 8, 6, 5, 4, 3, 2, 1];
-            const allTournamentEvents = new Set();
-            if(t.participants) { t.participants.forEach(p => { if(p.indEvents) p.indEvents.forEach(e => allTournamentEvents.add(e)); }); }
-            const totalEventsCount = allTournamentEvents.size;
-            const minEventsRequired = Math.ceil(totalEventsCount * 0.30);
-
-            const groups = {};
-            t.participants.forEach(p => {
-                if(!p.indEvents) return;
-                p.indEvents.forEach(evt => { const key = `${evt}|${p.gender}|${p.ageCat}|${p.compCat}`; if(!groups[key]) groups[key] = []; groups[key].push({ ...p, _event: evt }); });
-            });
-            Object.keys(groups).forEach(key => {
-                let participants = groups[key];
-                const distinctTeams = new Set(participants.map(p => p.team)).size;
-                const countP = participants.length;
-                const canScore = (countP >= 3 && distinctTeams >= 2);
-
-                participants = participants.filter(p => { const s = p[`status_${p._event}`]; return (s === 'OK' || !s) && p[`time_${p._event}`] && p.present; });
-                participants.sort((a, b) => timeToMs(a[`time_${a._event}`]) - timeToMs(b[`time_${b._event}`]));
-
-                participants.forEach((p, idx) => {
-                    initTeam(p.team); teamStats[p.team].validAthletes.add(p.id); teamStats[p.team].eventsParticipated.add(p._event);
-                    if (canScore && idx < pInd.length) {
-                        const pts = pInd[idx]; teamStats[p.team].rawPoints += pts;
-                        if(!teamStats[p.team].athleteScores[p.id]) teamStats[p.team].athleteScores[p.id] = 0;
-                        teamStats[p.team].athleteScores[p.id] += pts;
-                    }
-                });
-            });
-            const leaderboard = [];
-            Object.entries(teamStats).forEach(([name, stats]) => {
-                if (stats.validAthletes.size < 4) { stats.isValid = false; stats.reasons.push(`< 4 Atletas (${stats.validAthletes.size})`); }
-                if (stats.eventsParticipated.size < minEventsRequired) { stats.isValid = false; stats.reasons.push(`< 30% Provas (${stats.eventsParticipated.size}/${totalEventsCount})`); }
-
-                const capLimit = stats.rawPoints * 0.40; let adjustedTotal = 0; let capTriggered = false;
-                const scorers = Object.keys(stats.athleteScores);
-                if(scorers.length === 0) { adjustedTotal = 0; } 
-                else {
-                    scorers.forEach(athId => {
-                        let score = stats.athleteScores[athId];
-                        if (score > capLimit) { score = capLimit; capTriggered = true; }
-                        adjustedTotal += score;
-                    });
-                }
-                
-                if (capTriggered) { stats.reasons.push("Tope 40% Aplicado"); }
-                const divisor = stats.validAthletes.size > 0 ? stats.validAthletes.size : 1;
-                stats.finalScore = adjustedTotal / divisor;
-                leaderboard.push({ name, ...stats });
-            });
-            leaderboard.sort((a, b) => { if (a.isValid && !b.isValid) return -1; if (!a.isValid && b.isValid) return 1; return b.finalScore - a.finalScore; });
-
-            if (leaderboard.length === 0) { container.innerHTML = "<p style='text-align:center; padding:20px;'>No hay datos suficientes para el ranking.</p>"; return; }
-
-            let html = `<table class="generated-event-table"><thead><tr><td colspan="6" class="event-header" style="background-color: var(--zorros-blue);"><span class="event-title-line">CAMPEONATO POR EQUIPOS (Promedio)</span></td></tr><tr><th style="width:10%">Pos.</th><th style="width:30%">Equipo</th><th style="width:10%">Atletas</th><th style="width:10%">Provas</th><th style="width:15%">Puntaje Final</th><th style="width:25%">Obs.</th></tr></thead><tbody>`;
-            let rank = 1;
-            leaderboard.forEach((team) => {
-                let rowClass = ""; let displayRank = "-";
-                if (team.isValid) {
-                    if(rank===1) rowClass="rank-gold"; if(rank===2) rowClass="rank-silver"; if(rank===3) rowClass="rank-bronze";
-                    displayRank = rank++;
-                } else { rowClass = "row-error"; }
-                
-                const obsText = team.reasons.join(", "); const finalScoreDisplay = team.finalScore.toFixed(2);
-                html += `<tr class="${rowClass}"><td style="font-weight:bold; text-align:center;">${displayRank}</td><td style="font-weight:bold;">${team.name}</td><td style="text-align:center;">${team.validAthletes.size}</td><td style="text-align:center;">${team.eventsParticipated.size}</td><td style="text-align:center; font-weight:bold; font-size:1.1rem;">${finalScoreDisplay}</td><td style="font-size:0.85rem; color:#d32f2f;">${obsText}</td></tr>`;
-            });
-
-            html += `</tbody></table><div style="font-size:0.8rem; color:#666; margin-top:10px; padding:10px; background:#eee; border-radius:4px;"><strong>Reglas de Puntuación:</strong><br>1. Mínimo 4 atletas activos por equipo.<br>2. Participación en al menos 30% de las pruebas del torneo (Min: ${minEventsRequired}).<br>3. Puntuación: Total Puntos / Cantidad Atletas.<br>4. Tope Individual: Ningún atleta puede sumar más del 40% del total bruto del equipo.<br>5. Provas válidas: Mínimo 3 nadadores y 2 equipos diferentes.</div>`;
-            container.innerHTML = html;
-            document.getElementById('printSubtitle').innerText = `Ranking de Clubes`;
-        }
-
-        function timeToMs(timeStr) { if (!timeStr) return 999999999; const parts = timeStr.split(':'); if (parts.length !== 3) return 999999999; return (parseInt(parts[0]) * 60000) + (parseInt(parts[1]) * 1000) + parseInt(parts[2]); }
-        function processBigGroup(participants, heatsArray, limit) { for (let i = 0; i < participants.length; i += limit) heatsArray.push(participants.slice(i, i + limit)); }
-        function formatTimeInput(input) { let v = input.value.replace(/\D/g, ''); if (v.length > 6) v = v.slice(0, 6); if (v.length >= 5) input.value = `${v.slice(0,2)}:${v.slice(2,4)}:${v.slice(4,6)}`; else if (v.length >= 3) input.value = `${v.slice(0,2)}:${v.slice(2)}`; else input.value = v; }
-        
-        function saveTime(input, pId, eventName) { const t = tournaments.find(item => item.id === currentTournamentId); const p = t.participants.find(item => item.id === pId); if (p) { p[`time_${eventName}`] = input.value; saveToLocal(); } }
-        function saveTeamTime(input, evtId, teamId) { const t = tournaments.find(item => item.id === currentTournamentId); const evt = t.teamEvents.find(e => e.id === evtId); const team = evt.teams.find(tm => tm.id === teamId); if (team) { team.time = input.value; saveToLocal(); } }
         
         function handleSearch() { const input = document.getElementById('searchInput'); currentSearchTerm = normalizeString(input.value); renderParticipants(); }
         function toggleFilterPanel() { const panel = document.getElementById('filterPanel'); const btn = document.getElementById('btnToggleFilter'); if (panel.style.display === 'none' || panel.style.display === '') { panel.style.display = 'block'; btn.classList.add('active'); renderFilterCategories(); } else { panel.style.display = 'none'; btn.classList.remove('active'); } }
@@ -1811,7 +2044,6 @@
                     if (Array.isArray(data)) { 
                         tournaments = data; 
                         
-                        // Envia o arquivo importado para o Firebase para que todos os computadores o recebam
                         document.getElementById('loginLoading').style.display = 'block';
                         document.getElementById('loginLoading').innerHTML = "Sincronizando archivo a la nube...";
                         for(const t of tournaments) {
