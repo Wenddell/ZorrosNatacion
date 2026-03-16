@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lumos Tecnologia - Gestión</title>
+    
+    <link rel="icon" type="image/png" href="https://i.postimg.cc/HWZB9y5N/Logo-indumentaria-minimalista-tipografia-azul-4-removebg-preview.png">
+    
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -1616,8 +1619,11 @@
                 }
             });
             
-            // Dispara a impressão
-            window.print(); 
+            // Dispara a impressão nativa
+            // O evento 'afterprint' irá lidar com o que acontece depois
+            setTimeout(() => {
+                window.print();
+            }, 100);
         }
 
         // Listener de quando a janela de impressão do navegador fecha (sucesso ou cancelada)
